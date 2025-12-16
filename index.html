@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Scanner with OCR & Keyword Detection</title>
+    <style>
+        :root {
+            --color-primary: #2180cd;
+            --color-primary-hover: #1a68a0;
+            --color-bg: #f5f5f5;
+            --color-surface: #ffffff;
+            --color-text: #1a1a1a;
+            --color-text-secondary: #666666;
+            --color-border: #e0e0e0;
+            --color-success: #4caf50;
+            --color-error: #f44336;
+            --color-warning: #ff9800;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--color-text-secondary);
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border: 2px dashed var(--color-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .file-input-label:hover {
+            background-color: #f0f7ff;
+        }
+
+        .file-input-label.active {
+            background-color: #e3f2fd;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 120px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(33, 128, 141, 0.1);
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="checkbox"],
+        input[type="radio"] {
+            cursor: pointer;
+            accent-color: var(--color-primary);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+
+        .btn-secondary:hover {
+            background-color: #e8e8e8;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results-section {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .results-section h2 {
+            margin-top: 0;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: var(--color-text-secondary);
+            font-size: 16px;
+        }
+
+        .match-result {
+            background-color: #f9f9f9;
+            border-left: 4px solid var(--color-success);
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+
+        .match-result.muted {
+            border-left-color: var(--color-warning);
+            background-color: #fffbf0;
+        }
+
+        .match-phrase {
+            font-weight: 600;
+            color: var(--color-success);
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .match-result.muted .match-phrase {
+            color: var(--color-warning);
+        }
+
+        .match-context {
+            color: var(--color-text-secondary);
+            font-size: 13px;
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        .stats {
+            background-color: #f0f7ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-top: 4px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid var(--color-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        .error-message {
+            background-color: #ffebee;
+            border: 1px solid #ffcdd2;
+            border-radius: 6px;
+            padding: 15px;
+            color: #c62828;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-message {
+            background-color: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 6px;
+            padding: 15px;
+            color: #2e7d32;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .info-box {
+            background-color: #e3f2fd;
+            border-left: 4px solid var(--color-primary);
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #01579b;
+            margin-bottom: 15px;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .export-buttons button {
+            flex: 1;
+        }
+
+        .server-status {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .server-status.connected {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .server-status.disconnected {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 Document Scanner</h1>
+        <p class="subtitle">OCR-powered document analysis with intelligent phrase detection</p>
+
+        <div id="serverStatus" class="server-status disconnected">
+            🔴 Connecting to backend server...
+        </div>
+
+        <div class="grid">
+            <!-- Left Column: Document Upload -->
+            <div class="card">
+                <h2>1. Upload Document</h2>
+                
+                <div class="form-group">
+                    <label>Select File(s)</label>
+                    <p class="info-box">Supported: PDF, Word (.docx), Excel (.xlsx), JPEG, PNG, TIFF, and image-based PDFs</p>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.tiff,.tif">
+                        <label for="fileInput" class="file-input-label">
+                            <span>📁 Click to browse or drag files here</span>
+                        </label>
+                    </div>
+                    <div id="fileList" style="margin-top: 10px; font-size: 13px; color: var(--color-text-secondary);"></div>
+                </div>
+            </div>
+
+            <!-- Right Column: Keyword Configuration -->
+            <div class="card">
+                <h2>2. Configure Detection</h2>
+
+                <div class="form-group">
+                    <label>Detection Mode</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="radio" id="modePhrase" name="detectionMode" value="phrase" checked>
+                            <label for="modePhrase" style="margin-bottom: 0;">Phrase Detection (adjacent keywords)</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="radio" id="modeKeyword" name="detectionMode" value="keyword">
+                            <label for="modeKeyword" style="margin-bottom: 0;">Simple Keywords</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Keywords to Find (one per line)</label>
+                    <textarea id="keywordsList" placeholder="Enter keywords&#10;Example:&#10;invoice number&#10;order date&#10;total amount&#10;customer name"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Reject Keywords (one per line)</label>
+                    <textarea id="rejectList" placeholder="Words/phrases to exclude from results&#10;Example:&#10;draft&#10;sample&#10;template"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Options</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="caseSensitive">
+                            <label for="caseSensitive" style="margin-bottom: 0;">Case Sensitive</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="wholeWord" checked>
+                            <label for="wholeWord" style="margin-bottom: 0;">Whole Word Match</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div class="button-group">
+                <button class="btn-primary" id="scanBtn" disabled>🔍 Scan & Analyze</button>
+                <button class="btn-secondary" id="clearBtn">Clear All</button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <h2>📊 Results</h2>
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+            <div id="loadingInfo" class="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Processing documents with OCR...</div>
+            </div>
+            <div id="stats" class="stats" style="display: none;"></div>
+            <div id="matchesList"></div>
+            <div id="exportButtons" class="export-buttons" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000';
+        
+        const state = {
+            files: [],
+            results: null,
+            isProcessing: false,
+            serverConnected: false
+        };
+
+        // Check server connection on page load
+        window.addEventListener('load', checkServerConnection);
+
+        async function checkServerConnection() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    state.serverConnected = true;
+                    updateServerStatus(true);
+                } else {
+                    updateServerStatus(false);
+                }
+            } catch (error) {
+                updateServerStatus(false);
+            }
+        }
+
+        function updateServerStatus(connected) {
+            const statusDiv = document.getElementById('serverStatus');
+            if (connected) {
+                statusDiv.className = 'server-status connected';
+                statusDiv.textContent = '🟢 Connected to backend server';
+            } else {
+                statusDiv.className = 'server-status disconnected';
+                statusDiv.textContent = '🔴 Backend server not found. Make sure "python app.py" is running on http://localhost:5000';
+            }
+        }
+
+        // File input handling
+        const fileInput = document.getElementById('fileInput');
+        const fileInputLabel = document.querySelector('.file-input-label');
+        const fileList = document.getElementById('fileList');
+
+        fileInput.addEventListener('change', handleFileSelect);
+        fileInputLabel.addEventListener('dragover', handleDragOver);
+        fileInputLabel.addEventListener('dragleave', handleDragLeave);
+        fileInputLabel.addEventListener('drop', handleDrop);
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            updateFileList(files);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            fileInputLabel.classList.add('active');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            fileInputLabel.classList.remove('active');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            fileInputLabel.classList.remove('active');
+            const files = Array.from(e.dataTransfer.files);
+            
+            // Update file input
+            const dt = new DataTransfer();
+            files.forEach(f => dt.items.add(f));
+            fileInput.files = dt.files;
+            
+            updateFileList(files);
+        }
+
+        function updateFileList(files) {
+            state.files = files;
+            
+            let html = '';
+            if (files.length > 0) {
+                html = '<strong>Selected files:</strong><ul style="margin: 8px 0; padding-left: 20px;">';
+                files.forEach(f => {
+                    html += `<li>${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</li>`;
+                });
+                html += '</ul>';
+                document.getElementById('scanBtn').disabled = !state.serverConnected;
+            } else {
+                document.getElementById('scanBtn').disabled = true;
+            }
+            fileList.innerHTML = html;
+        }
+
+        // Scan button
+        document.getElementById('scanBtn').addEventListener('click', performScan);
+
+        async function performScan() {
+            const keywords = document.getElementById('keywordsList').value
+                .split('\n')
+                .map(k => k.trim())
+                .filter(k => k.length > 0);
+
+            const rejectWords = document.getElementById('rejectList').value
+                .split('\n')
+                .map(k => k.trim())
+                .filter(k => k.length > 0);
+
+            if (keywords.length === 0) {
+                showError('Please enter at least one keyword');
+                return;
+            }
+
+            if (state.files.length === 0) {
+                showError('Please select at least one file');
+                return;
+            }
+
+            state.isProcessing = true;
+            showLoading();
+
+            try {
+                // Prepare form data
+                const formData = new FormData();
+                state.files.forEach(file => {
+                    formData.append('files', file);
+                });
+                formData.append('keywords', keywords.join('\n'));
+                formData.append('reject_words', rejectWords.join('\n'));
+                formData.append('case_sensitive', document.getElementById('caseSensitive').checked);
+                formData.append('whole_word', document.getElementById('wholeWord').checked);
+                formData.append('mode', document.querySelector('input[name="detectionMode"]:checked').value);
+
+                // Send to backend
+                const response = await fetch(`${API_BASE_URL}/scan`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Server error');
+                }
+
+                const results = await response.json();
+                state.results = results;
+                displayResults(results);
+
+            } catch (error) {
+                showError(error.message || 'Failed to process documents. Check backend server.');
+            } finally {
+                state.isProcessing = false;
+            }
+        }
+
+        function displayResults(results) {
+            const resultsSection = document.getElementById('resultsSection');
+            const matchesList = document.getElementById('matchesList');
+            const stats = document.getElementById('stats');
+            const exportButtons = document.getElementById('exportButtons');
+
+            resultsSection.style.display = 'block';
+            document.getElementById('loadingInfo').style.display = 'none';
+
+            // Display errors if any
+            if (results.errors && results.errors.length > 0) {
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.innerHTML = '⚠️ ' + results.errors.join('<br>');
+                errorDiv.style.display = 'block';
+            }
+
+            // Stats
+            stats.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-label">Documents Processed</div>
+                    <div class="stat-value">${results.total_documents}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Matches Found</div>
+                    <div class="stat-value">${results.total_matches}</div>
+                </div>
+            `;
+            stats.style.display = 'grid';
+
+            // Matches
+            if (results.matches.length === 0) {
+                matchesList.innerHTML = '<div class="no-results">No matches found</div>';
+            } else {
+                matchesList.innerHTML = results.matches.map(m => `
+                    <div class="match-result ${m.rejected ? 'muted' : ''}">
+                        <div><strong>Phrase:</strong> <span class="match-phrase">${escapeHtml(m.phrase)}</span></div>
+                        <div><strong>Document:</strong> ${escapeHtml(m.document)}</div>
+                        <div class="match-context"><strong>Context:</strong> "${escapeHtml(m.context)}"</div>
+                        ${m.rejected ? '<div style="color: var(--color-warning); font-weight: 500; margin-top: 8px;">⚠️ Matched reject keyword</div>' : ''}
+                    </div>
+                `).join('');
+            }
+
+            // Export buttons
+            exportButtons.innerHTML = `
+                <button class="btn-primary" onclick="exportResults('json')">📥 Export JSON</button>
+                <button class="btn-secondary" onclick="exportResults('csv')">📥 Export CSV</button>
+            `;
+            exportButtons.style.display = 'flex';
+        }
+
+        function showLoading() {
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('loadingInfo').style.display = 'block';
+            document.getElementById('stats').style.display = 'none';
+            document.getElementById('matchesList').innerHTML = '';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('resultsSection').style.display = 'block';
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = '❌ ' + message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loadingInfo').style.display = 'none';
+        }
+
+        function exportResults(format) {
+            if (!state.results) return;
+
+            const data = state.results.matches;
+            let content = '';
+
+            if (format === 'json') {
+                content = JSON.stringify(data, null, 2);
+                downloadFile(content, 'results.json', 'application/json');
+            } else if (format === 'csv') {
+                content = 'Phrase,Document,Context,Rejected\n';
+                data.forEach(m => {
+                    content += `"${m.phrase.replace(/"/g, '""')}","${m.document}","${m.context.replace(/"/g, '""')}","${m.rejected}"\n`;
+                });
+                downloadFile(content, 'results.csv', 'text/csv');
+            }
+        }
+
+        function downloadFile(content, filename, type) {
+            const blob = new Blob([content], { type: type });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Clear button
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('keywordsList').value = '';
+            document.getElementById('rejectList').value = '';
+            document.getElementById('resultsSection').style.display = 'none';
+            state.files = [];
+            state.results = null;
+            fileList.innerHTML = '';
+            document.getElementById('scanBtn').disabled = !state.serverConnected;
+        });
+    </script>
+</body>
+</html>
