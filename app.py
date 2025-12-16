@@ -13,10 +13,10 @@ import json
 import tempfile
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max
-app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB max
+app.config["UPLOAD_FOLDER"] = tempfile.gettempdir()
 
-ALLOWED_EXTENSIONS = {'pdf', 'docx', 'xlsx', 'jpg', 'jpeg', 'png', 'tiff', 'tif'}
+ALLOWED_EXTENSIONS = {"pdf", "docx", "xlsx", "jpg", "jpeg", "png", "tiff", "tif"}
 
 # ----------------------------------------------------------------------
 # Paths to data files (place all next to app.py)
@@ -26,8 +26,10 @@ REGEX_PATH = "regex_patterns.json"
 STOPWORDS_PATH = "english.txt"
 
 
-def allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def allowed_file(filename: str, allowed_exts=None) -> bool:
+    if allowed_exts is None:
+        allowed_exts = ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_exts
 
 
 # ----------------------------------------------------------------------
@@ -119,7 +121,7 @@ def extract_text_from_pdf(pdf_path):
     text = ""
     try:
         # Try text extraction first
-        with open(pdf_path, 'rb') as file:
+        with open(pdf_path, "rb") as file:
             reader = PyPDF2.PdfReader(file)
             for page in reader.pages:
                 page_text = page.extract_text() or ""
@@ -176,15 +178,15 @@ def extract_text_from_xlsx(xlsx_path):
 
 def extract_text_from_file(filepath, filename):
     """Route to appropriate text extraction method based on extension."""
-    ext = filename.rsplit('.', 1)[1].lower()
+    ext = filename.rsplit(".", 1)[1].lower()
 
-    if ext == 'pdf':
+    if ext == "pdf":
         return extract_text_from_pdf(filepath)
-    elif ext == 'docx':
+    elif ext == "docx":
         return extract_text_from_docx(filepath)
-    elif ext == 'xlsx':
+    elif ext == "xlsx":
         return extract_text_from_xlsx(filepath)
-    elif ext in {'jpg', 'jpeg', 'png', 'tiff', 'tif'}:
+    elif ext in {"jpg", "jpeg", "png", "tiff", "tif"}:
         return extract_text_from_image(filepath)
     else:
         return "Unsupported file type"
@@ -199,7 +201,9 @@ def extract_text_from_file(filepath, filename):
 WORD_SPLIT_RE = re.compile(r"\s+")
 
 
-def find_adjacent_keyword_pairs(text, keywords, length_map, stopwords, case_sensitive=False):
+def find_adjacent_keyword_pairs(
+    text, keywords, length_map, stopwords, case_sensitive=False
+):
     """
     Find matches where TWO keywords from `keywords` appear as two consecutive
     tokens on the same line. Excludes stopwords and includes combined length.
@@ -332,33 +336,76 @@ def find_regex_matches(text, regex_patterns, context_window=80):
 
 
 # ----------------------------------------------------------------------
+# Directory scanning helper
+# ----------------------------------------------------------------------
+def iter_files_from_directories(directories, allowed_exts):
+    """
+    Yield full file paths from the given directories, recursively,
+    filtered by allowed_exts.
+    """
+    for root in directories:
+        if not root:
+            continue
+        if not os.path.isdir(root):
+            continue
+        for dirpath, _, filenames in os.walk(root):
+            for fname in filenames:
+                if allowed_file(fname, allowed_exts):
+                    yield os.path.join(dirpath, fname)
+
+
+# ----------------------------------------------------------------------
 # API endpoints
 # ----------------------------------------------------------------------
-@app.route('/scan', methods=['POST'])
+@app.route("/scan", methods=["POST"])
 def scan_documents():
     """Main endpoint for document scanning and detection."""
     try:
-        if 'files' not in request.files or len(request.files.getlist('files')) == 0:
-            return jsonify({'error': 'No files uploaded'}), 400
+        files = request.files.getlist("files") if "files" in request.files else []
 
-        files = request.files.getlist('files')
-        case_sensitive = request.form.get('case_sensitive', 'false') == 'true'
+        # Optional: directories to scan recursively (comma-separated)
+        directories_raw = request.form.get("directories", "").strip()
+        directories = (
+            [d.strip() for d in directories_raw.split(",") if d.strip()]
+            if directories_raw
+            else []
+        )
+
+        # Optional: file type filter, e.g. "pdf,docx"
+        file_types_raw = request.form.get("file_types", "").strip()
+        if file_types_raw:
+            allowed_exts = {
+                ext.strip().lstrip(".").lower()
+                for ext in file_types_raw.split(",")
+                if ext.strip()
+            }
+            # intersect with supported extensions to be safe
+            allowed_exts = allowed_exts & ALLOWED_EXTENSIONS
+            if not allowed_exts:
+                return jsonify({"error": "No valid file types specified"}), 400
+        else:
+            allowed_exts = ALLOWED_EXTENSIONS
+
+        if not files and not directories:
+            return jsonify({"error": "No files uploaded and no directories specified"}), 400
+
+        case_sensitive = request.form.get("case_sensitive", "false") == "true"
 
         all_phrase_matches = []
         all_regex_matches = []
         processed_files = []
         errors = []
 
+        # 1) Process uploaded files (as before)
         for file in files:
-            if file and allowed_file(file.filename):
+            if file and allowed_file(file.filename, allowed_exts):
                 filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
                 file.save(filepath)
 
                 try:
                     text = extract_text_from_file(filepath, filename)
 
-                    # 1) adjacent keyword pairs from lexicon_latest.csv
                     phrase_matches = find_adjacent_keyword_pairs(
                         text,
                         KEYWORDS,
@@ -370,7 +417,6 @@ def scan_documents():
                         m["document"] = filename
                     all_phrase_matches.extend(phrase_matches)
 
-                    # 2) regex matches from regex_patterns.json
                     regex_matches = find_regex_matches(text, REGEX_PATTERNS)
                     for r in regex_matches:
                         r["document"] = filename
@@ -383,8 +429,34 @@ def scan_documents():
                 finally:
                     if os.path.exists(filepath):
                         os.remove(filepath)
-            else:
-                errors.append(f"File not allowed: {file.filename}")
+            elif file:
+                errors.append(f"File not allowed (type filter): {file.filename}")
+
+        # 2) Process files from directories (recursive)
+        for fullpath in iter_files_from_directories(directories, allowed_exts):
+            filename = os.path.basename(fullpath)
+            try:
+                text = extract_text_from_file(fullpath, filename)
+
+                phrase_matches = find_adjacent_keyword_pairs(
+                    text,
+                    KEYWORDS,
+                    KEYWORD_LENGTHS,
+                    STOPWORDS,
+                    case_sensitive=case_sensitive,
+                )
+                for m in phrase_matches:
+                    m["document"] = fullpath
+                all_phrase_matches.extend(phrase_matches)
+
+                regex_matches = find_regex_matches(text, REGEX_PATTERNS)
+                for r in regex_matches:
+                    r["document"] = fullpath
+                all_regex_matches.extend(regex_matches)
+
+                processed_files.append(fullpath)
+            except Exception as e:
+                errors.append(f"Error processing {fullpath}: {str(e)}")
 
         # Sort keyword-phrase matches by position
         all_phrase_matches.sort(key=lambda x: x.get("position", 0))
@@ -406,10 +478,13 @@ def scan_documents():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/health', methods=['GET'])
+@app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint."""
-    return jsonify({"status": "Server is running", "ocr_available": check_tesseract()}), 200
+    return (
+        jsonify({"status": "Server is running", "ocr_available": check_tesseract()}),
+        200,
+    )
 
 
 def check_tesseract():
@@ -421,7 +496,7 @@ def check_tesseract():
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Starting Document Scanner Backend Server...")
     print("Server running on http://localhost:5555")
-    app.run(debug=True, host='0.0.0.0', port=5555)
+    app.run(debug=True, host="0.0.0.0", port=5555)
