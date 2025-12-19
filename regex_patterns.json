@@ -547,6 +547,10 @@
     "name": "vic_australia_drivers_license_number",
     "pattern": "(?is)\bLICENCE\b.*?(\\d{9})"
   },
+ {
+    "name": "australia_passport_number_latest",
+    "pattern": "(?i)\\b(passport|passport\\s*number|australian\\s*passport|travel\\s*document)\b[\\s\\S]{0,4000}?\\b([A-Z]{1,2}[0-9]{7})\\b"
+  },
   {
     "name": "australia_passport_number_Copy",
     "pattern": "(?i)\\b(([AC-FNUX]|P[A-FUWXZ])\\d{7})\\b"
