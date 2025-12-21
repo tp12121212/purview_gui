@@ -549,7 +549,7 @@
   },
   {
   "name": "australia_passport_number_latest",
-  "pattern": "(?i)\\bPA\\s*[0-9]{7,8}\\b"
+  "pattern": "DOCUMENT\\s*No\\.?[\\s\\S]{0,100}[A-Z]{2}[0-9]{7}"
   },
    {
     "name": "australia_passport_number_latest_2",
