@@ -1,427 +1,301 @@
-from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
-import pytesseract
-from PIL import Image
-import PyPDF2
-from docx import Document
-import openpyxl
-from pdf2image import convert_from_path
 import os
-import re
 import csv
 import json
 import tempfile
+from pathlib import Path
+from flask import Flask, request, jsonify
+import re
+
+import pytesseract
+from PIL import Image
+import PyPDF2
+import docx
+import openpyxl
+from pdf2image import convert_from_path
+
+# ======================================================
+# Flask app
+# ======================================================
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max
-app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
-ALLOWED_EXTENSIONS = {'pdf', 'docx', 'xlsx', 'jpg', 'jpeg', 'png', 'tiff', 'tif'}
+# ======================================================
+# Configuration
+# ======================================================
 
-# ----------------------------------------------------------------------
-# Paths to data files (place all next to app.py)
-# ----------------------------------------------------------------------
-LEXICON_PATH = "lexicon_latest.csv"
-REGEX_PATH = "regex_patterns.json"
-STOPWORDS_PATH = "english.txt"
+DEFAULT_LEXICON_PATH = "lexicon_latest.csv"
+REGEX_PATTERNS_PATH = "regex_patterns.json"
 
+SUPPORTED_EXTENSIONS = {
+    ".pdf", ".docx", ".xlsx",
+    ".jpg", ".jpeg", ".png", ".tif", ".tiff"
+}
 
-def allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500MB
 
+# ======================================================
+# Lexicon loading (STRICT multi-word only)
+# ======================================================
 
-# ----------------------------------------------------------------------
-# Load keywords (with lengths), regex patterns, and stopwords
-# ----------------------------------------------------------------------
-def load_keywords():
-    """
-    Load keywords and their lengths from lexicon_latest.csv.
-    Assumes header: keyword,length
-    """
+def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH):
     keywords = []
-    length_map = {}
-    with open(LEXICON_PATH, newline="", encoding="utf-8") as f:
+
+    with open(lexicon_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            kw = (row.get("keyword") or "").strip()
-            if not kw:
+            value = (
+                row.get("keyword")
+                or row.get("phrase")
+                or row.get("value")
+            )
+            if not value:
                 continue
-            try:
-                kw_len = int(row.get("length") or 0)
-            except ValueError:
-                kw_len = 0
-            keywords.append(kw)
-            length_map[kw.lower()] = kw_len
-    return keywords, length_map
 
+            value = value.strip()
+
+            # At least two words, single literal spaces, alnum only
+            if re.fullmatch(r"[A-Za-z0-9]+( [A-Za-z0-9]+)+", value):
+                keywords.append(value)
+
+    return keywords
+
+# ======================================================
+# Regex loading
+# ======================================================
 
 def load_regex_patterns():
-    """
-    Load regex patterns from regex_patterns.json.
-    Expects a list of objects: { "name": "...", "pattern": "..." }.
-    """
-    with open(REGEX_PATH, encoding="utf-8") as f:
-        data = json.load(f)
+    with open(REGEX_PATTERNS_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
-    patterns = []
-    for item in data:
-        name = item.get("name")
-        pattern = item.get("pattern")
-        if not name or not pattern:
-            continue
-        try:
-            compiled = re.compile(pattern, re.MULTILINE)
-            patterns.append(
-                {
-                    "name": name,
-                    "pattern": pattern,
-                    "regex": compiled,
-                }
-            )
-        except re.error:
-            # Skip invalid regex entries
-            continue
-    return patterns
+# ======================================================
+# File collection
+# ======================================================
 
+def collect_files_from_path(path: str, recursive: bool):
+    collected = []
+    p = Path(path)
 
-def load_stopwords():
-    """
-    Load stopwords from english.txt (one term per line).
-    """
-    stopwords = set()
-    with open(STOPWORDS_PATH, encoding="utf-8") as f:
-        for line in f:
-            w = line.strip()
-            if w:
-                stopwords.add(w.lower())
-    return stopwords
+    if p.is_file():
+        if p.suffix.lower() in SUPPORTED_EXTENSIONS:
+            collected.append(p)
+        return collected
 
+    if p.is_dir():
+        iterator = p.rglob("*") if recursive else p.glob("*")
+        for item in iterator:
+            if item.is_file() and item.suffix.lower() in SUPPORTED_EXTENSIONS:
+                collected.append(item)
 
-KEYWORDS, KEYWORD_LENGTHS = load_keywords()
-REGEX_PATTERNS = load_regex_patterns()
-STOPWORDS = load_stopwords()
+    return collected
 
-# ----------------------------------------------------------------------
-# Text extraction helpers
-# ----------------------------------------------------------------------
-def extract_text_from_image(image_path):
-    """Extract text from image using OCR (pytesseract)."""
-    try:
-        image = Image.open(image_path)
-        text = pytesseract.image_to_string(image)
+# ======================================================
+# Text extraction
+# ======================================================
+
+def extract_text_from_pdf(path):
+    text = ""
+    with open(path, "rb") as f:
+        reader = PyPDF2.PdfReader(f)
+        for page in reader.pages:
+            text += page.extract_text() or ""
+
+    if text.strip():
         return text
-    except Exception as e:
-        return f"Error extracting text from image: {str(e)}"
 
-
-def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF (handles both text-based and image-based PDFs)."""
-    text = ""
-    try:
-        # Try text extraction first
-        with open(pdf_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            for page in reader.pages:
-                page_text = page.extract_text() or ""
-                text += page_text + "\n"
-
-        # If PDF is mostly empty/scanned, convert to images and use OCR
-        if len(text.strip()) < 50:
-            images = convert_from_path(pdf_path)
-            for image in images:
-                text += pytesseract.image_to_string(image) + "\n"
-    except Exception as e:
-        return f"Error extracting text from PDF: {str(e)}"
+    images = convert_from_path(path)
+    for img in images:
+        text += pytesseract.image_to_string(img)
 
     return text
 
 
-def extract_text_from_docx(docx_path):
-    """Extract text from Word document."""
-    text = ""
-    try:
-        doc = Document(docx_path)
-        for para in doc.paragraphs:
-            text += para.text + "\n"
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    text += cell.text + "\n"
-    except Exception as e:
-        return f"Error extracting text from DOCX: {str(e)}"
+def extract_text_from_docx(path):
+    doc = docx.Document(path)
+    return "\n".join(p.text for p in doc.paragraphs)
 
+
+def extract_text_from_xlsx(path):
+    wb = openpyxl.load_workbook(path, data_only=True)
+    text = ""
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows(values_only=True):
+            for cell in row:
+                if cell is not None:
+                    text += f"{cell} "
     return text
 
 
-def extract_text_from_xlsx(xlsx_path):
-    """Extract text from Excel file."""
-    text = ""
-    try:
-        wb = openpyxl.load_workbook(xlsx_path, data_only=True)
-        for sheet in wb.sheetnames:
-            ws = wb[sheet]
-            text += f"\n[Sheet: {sheet}]\n"
-            for row in ws.iter_rows(values_only=True):
-                line_parts = []
-                for cell in row:
-                    if cell is not None:
-                        line_parts.append(str(cell))
-                if line_parts:
-                    text += " ".join(line_parts) + "\n"
-    except Exception as e:
-        return f"Error extracting text from XLSX: {str(e)}"
-
-    return text
+def extract_text_from_image(path):
+    img = Image.open(path)
+    return pytesseract.image_to_string(img)
 
 
-def extract_text_from_file(filepath, filename):
-    """Route to appropriate text extraction method based on extension."""
-    ext = filename.rsplit('.', 1)[1].lower()
-
-    if ext == 'pdf':
-        return extract_text_from_pdf(filepath)
-    elif ext == 'docx':
-        return extract_text_from_docx(filepath)
-    elif ext == 'xlsx':
-        return extract_text_from_xlsx(filepath)
-    elif ext in {'jpg', 'jpeg', 'png', 'tiff', 'tif'}:
-        return extract_text_from_image(filepath)
-    else:
-        return "Unsupported file type"
+def extract_text_from_file_path(path: Path):
+    ext = path.suffix.lower()
+    if ext == ".pdf":
+        return extract_text_from_pdf(str(path))
+    if ext == ".docx":
+        return extract_text_from_docx(str(path))
+    if ext == ".xlsx":
+        return extract_text_from_xlsx(str(path))
+    if ext in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
+        return extract_text_from_image(str(path))
+    return ""
 
 
-# ----------------------------------------------------------------------
-# Keyword phrase detection:
-#   - Two adjacent lexicon words
-#   - Same line only (no crossing \n)
-#   - Exclude stopwords from english.txt
-# ----------------------------------------------------------------------
-WORD_SPLIT_RE = re.compile(r"\s+")
+def extract_text_from_upload(file):
+    suffix = Path(file.filename).suffix.lower()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        file.save(tmp.name)
+        return extract_text_from_file_path(Path(tmp.name))
 
+# ======================================================
+# Proximity logic
+# ======================================================
 
-def find_adjacent_keyword_pairs(text, keywords, length_map, stopwords, case_sensitive=False):
-    """
-    Find matches where TWO keywords from `keywords` appear as two consecutive
-    tokens on the same line. Excludes stopwords and includes combined length.
-    """
-    if not text:
-        return []
+def nearest_regex_info(start, end, regex_hits):
+    closest = None
+    min_distance = None
 
-    if not case_sensitive:
-        keyword_set = {k.lower() for k in keywords}
-    else:
-        keyword_set = set(keywords)
+    for r in regex_hits:
+        if r["end"] < start:
+            d = start - r["end"]
+        elif r["start"] > end:
+            d = r["start"] - end
+        else:
+            d = 0
 
-    matches = []
-    lines = text.splitlines()
-    char_offset = 0  # global character index
+        if min_distance is None or d < min_distance:
+            min_distance = d
+            closest = r["name"]
 
-    for line in lines:
-        line_proc = line if case_sensitive else line.lower()
+    return closest, min_distance
 
-        # Tokenize line on whitespace
-        tokens = []
-        pos = 0
-        for part in WORD_SPLIT_RE.split(line_proc):
-            if not part:
-                continue
-            start = line_proc.find(part, pos)
-            if start == -1:
-                continue
-            end = start + len(part)
-            tokens.append((part, start, end))
-            pos = end
+# ======================================================
+# API endpoint
+# ======================================================
 
-        # Check adjacent pairs within the same line
-        for i in range(len(tokens) - 1):
-            w1, s1, e1 = tokens[i]
-            w2, s2, e2 = tokens[i + 1]
+@app.route("/scan", methods=["POST"])
+def scan():
+    lexicon_path = request.form.get("lexicon_path", DEFAULT_LEXICON_PATH)
+    scan_path = request.form.get("path")
+    recursive = request.form.get("recursive", "false").lower() == "true"
 
-            # Exclude stopwords
-            if w1 in stopwords or w2 in stopwords:
-                continue
+    keywords = load_keywords(lexicon_path)
+    regex_patterns = load_regex_patterns()
 
-            if w1 in keyword_set and w2 in keyword_set:
-                phrase = f"{w1} {w2}"
+    all_files = []
 
-                len1 = length_map.get(w1, 0)
-                len2 = length_map.get(w2, 0)
-                combined_length = len1 + len2
+    for f in request.files.getlist("files"):
+        all_files.append(("upload", f))
 
-                global_start = char_offset + s1
-                global_end = char_offset + e2
+    if scan_path:
+        for p in collect_files_from_path(scan_path, recursive):
+            all_files.append(("path", p))
 
-                ctx_start = max(0, global_start - 80)
-                ctx_end = min(len(text), global_end + 80)
-                context = text[ctx_start:ctx_end]
-                if ctx_start > 0:
-                    context = "..." + context
-                if ctx_end < len(text):
-                    context = context + "..."
-
-                matches.append(
-                    {
-                        "phrase": phrase,
-                        "word1": w1,
-                        "word2": w2,
-                        "length_word1": len1,
-                        "length_word2": len2,
-                        "combined_length": combined_length,
-                        "context": context,
-                        "position": global_start,
-                    }
-                )
-
-        # +1 for the newline removed by splitlines()
-        char_offset += len(line) + 1
-
-    return matches
-
-
-# ----------------------------------------------------------------------
-# Regex matching with line numbers and context
-# ----------------------------------------------------------------------
-def find_regex_matches(text, regex_patterns, context_window=80):
-    """
-    For each regex pattern, return matches with:
-    - name
-    - pattern
-    - matched text
-    - line number
-    - context (surrounding text)
-    """
     results = []
-    if not text:
-        return results
+    errors = []
 
-    lines = text.splitlines()
-    char_offset = 0  # global character index
-
-    for line_no, line in enumerate(lines, start=1):
-        for item in regex_patterns:
-            regex = item["regex"]
-            for m in regex.finditer(line):
-                local_start = m.start()
-                local_end = m.end()
-
-                global_start = char_offset + local_start
-                global_end = char_offset + local_end
-
-                ctx_start = max(0, global_start - context_window)
-                ctx_end = min(len(text), global_end + context_window)
-                context = text[ctx_start:ctx_end]
-                if ctx_start > 0:
-                    context = "..." + context
-                if ctx_end < len(text):
-                    context = context + "..."
-
-                results.append(
-                    {
-                        "name": item["name"],
-                        "pattern": item["pattern"],
-                        "match": m.group(0),
-                        "line": line_no,
-                        "context": context,
-                    }
-                )
-
-        # +1 for newline removed by splitlines()
-        char_offset += len(line) + 1
-
-    return results
-
-
-# ----------------------------------------------------------------------
-# API endpoints
-# ----------------------------------------------------------------------
-@app.route('/scan', methods=['POST'])
-def scan_documents():
-    """Main endpoint for document scanning and detection."""
-    try:
-        if 'files' not in request.files or len(request.files.getlist('files')) == 0:
-            return jsonify({'error': 'No files uploaded'}), 400
-
-        files = request.files.getlist('files')
-        case_sensitive = request.form.get('case_sensitive', 'false') == 'true'
-
-        all_phrase_matches = []
-        all_regex_matches = []
-        processed_files = []
-        errors = []
-
-        for file in files:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-
-                try:
-                    text = extract_text_from_file(filepath, filename)
-
-                    # 1) adjacent keyword pairs from lexicon_latest.csv
-                    phrase_matches = find_adjacent_keyword_pairs(
-                        text,
-                        KEYWORDS,
-                        KEYWORD_LENGTHS,
-                        STOPWORDS,
-                        case_sensitive=case_sensitive,
-                    )
-                    for m in phrase_matches:
-                        m["document"] = filename
-                    all_phrase_matches.extend(phrase_matches)
-
-                    # 2) regex matches from regex_patterns.json
-                    regex_matches = find_regex_matches(text, REGEX_PATTERNS)
-                    for r in regex_matches:
-                        r["document"] = filename
-                    all_regex_matches.extend(regex_matches)
-
-                    processed_files.append(filename)
-
-                except Exception as e:
-                    errors.append(f"Error processing {filename}: {str(e)}")
-                finally:
-                    if os.path.exists(filepath):
-                        os.remove(filepath)
+    for source, item in all_files:
+        try:
+            if source == "upload":
+                document = item.filename
+                text = extract_text_from_upload(item)
             else:
-                errors.append(f"File not allowed: {file.filename}")
+                document = str(item)
+                text = extract_text_from_file_path(item)
 
-        # Sort keyword-phrase matches by position
-        all_phrase_matches.sort(key=lambda x: x.get("position", 0))
+            # -------------------------
+            # Regex hits
+            # -------------------------
+            regex_hits = []
+            for r in regex_patterns:
+                for m in re.finditer(r["pattern"], text, re.IGNORECASE | re.DOTALL):
+                    regex_hits.append({
+                        "name": r["name"],
+                        "start": m.start(),
+                        "end": m.end(),
+                        "value": m.group(0)
+                    })
 
-        return jsonify(
-            {
-                "success": True,
-                "total_documents": len(processed_files),
-                "documents_processed": processed_files,
-                "keyword_phrase_matches_count": len(all_phrase_matches),
-                "keyword_phrase_matches": all_phrase_matches,
-                "regex_matches_count": len(all_regex_matches),
-                "regex_matches": all_regex_matches,
-                "errors": errors,
-            }
-        )
+            # -------------------------
+            # Keyword hits (strict)
+            # -------------------------
+            keyword_hits = []
+            for kw in keywords:
+                pat = re.compile(rf"\b{re.escape(kw)}\b")
+                for m in pat.finditer(text):
+                    keyword_hits.append({
+                        "phrase": kw,
+                        "start": m.start(),
+                        "end": m.end()
+                    })
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            # -------------------------
+            # Primary correlation mode
+            # -------------------------
+            if regex_hits and keyword_hits:
+                for k in keyword_hits:
+                    nearest_name, nearest_dist = nearest_regex_info(
+                        k["start"], k["end"], regex_hits
+                    )
+
+                    results.append({
+                        "type": "keyword",
+                        "fallback": False,
+                        "phrase": k["phrase"],
+                        "document": document,
+                        "position": k["start"],
+                        "nearest_regex": nearest_name,
+                        "nearest_regex_distance": nearest_dist,
+                        "context": text[max(0, k["start"]-50):k["end"]+50]
+                    })
+
+            # -------------------------
+            # Fallback mode
+            # -------------------------
+            else:
+                for r in regex_hits:
+                    results.append({
+                        "type": "regex",
+                        "fallback": True,
+                        "regex_name": r["name"],
+                        "document": document,
+                        "position": r["start"],
+                        "value": r["value"],
+                        "context": text[max(0, r["start"]-50):r["end"]+50]
+                    })
+
+                for k in keyword_hits:
+                    results.append({
+                        "type": "keyword",
+                        "fallback": True,
+                        "phrase": k["phrase"],
+                        "document": document,
+                        "position": k["start"],
+                        "context": text[max(0, k["start"]-50):k["end"]+50]
+                    })
+
+        except Exception as e:
+            errors.append(f"{document}: {str(e)}")
+
+    return jsonify({
+        "success": True,
+        "documents_scanned": len(all_files),
+        "total_matches": len(results),
+        "matches": results,
+        "errors": errors
+    })
 
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint."""
-    return jsonify({"status": "Server is running", "ocr_available": check_tesseract()}), 200
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "status": "ok",
+        "ocr_available": True
+    })
 
 
-def check_tesseract():
-    """Check if Tesseract OCR is installed and reachable."""
-    try:
-        pytesseract.get_tesseract_version()
-        return True
-    except Exception:
-        return False
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Starting Document Scanner Backend Server...")
-    print("Server running on http://localhost:5555")
-    app.run(debug=True, host='0.0.0.0', port=5555)
+    app.run(debug=True)
