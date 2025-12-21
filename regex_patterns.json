@@ -548,8 +548,13 @@
     "pattern": "(?is)\\bLICENCE\\b.*?(\\d{9})"
   },
   {
+<<<<<<< HEAD
+  "name": "australia_passport_number_latest",
+  "pattern": "(?i)DOCUMENT[\\s\\S]{0,200}PA[0-9]{7}|PA[0-9]{7}[\\s\\S]{0,200}DOCUMENT"
+=======
     "name": "australia_passport_number_latest",
     "pattern": "DOCUMENT\\s*No\\.?[\\s\\S]{0,100}[A-Z]{2}[0-9]{7}"
+>>>>>>> 3217253a576c12a23cd7716ecbcce90b72823a6d
   },
   {
     "name": "australia_passport_number_Copy",
