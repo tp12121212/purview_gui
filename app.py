@@ -170,6 +170,9 @@ def scan():
     mode = request.form.get("mode", "phrase")
 
     matches = []
+    keyword_matches = []
+    multi_word_keyword_matches = []
+    regex_matches = []
     errors = []
     processed_files = []
 
@@ -192,28 +195,59 @@ def scan():
 
             processed_files.append(file.filename)
 
+            # Regex scanning (collected first for proximity calculations)
+            file_regex_matches = []
+            for rx in REGEX_PATTERNS:
+                for m in rx["compiled"].finditer(text):
+                    snippet = text[max(m.start()-40, 0):m.end()+40]
+
+                    regex_match = {
+                        "phrase": rx["name"],
+                        "document": file.filename,
+                        "context": snippet.strip(),
+                        "rejected": False,
+                        "position": m.start()
+                    }
+
+                    matches.append(regex_match)
+                    regex_matches.append(regex_match)
+                    file_regex_matches.append(regex_match)
+
             # Keyword / phrase scanning
             if mode == "phrase":
                 found = find_phrases(
                     text, keywords, reject_words,
                     case_sensitive, whole_word
                 )
+
+                phrase_counts = {}
+                for f in found:
+                    phrase_counts[f["phrase"]] = phrase_counts.get(f["phrase"], 0) + 1
+
                 for f in found:
                     f["document"] = file.filename
+                    f["instance_count"] = phrase_counts[f["phrase"]]
+
+                    proximities = [
+                        {
+                            "regex_name": rx_match["phrase"],
+                            "distance": abs(f["position"] - rx_match["position"]),
+                            "regex_position": rx_match["position"],
+                            "regex_context": rx_match["context"]
+                        }
+                        for rx_match in file_regex_matches
+                    ]
+
+                    proximities.sort(key=lambda p: p["distance"])
+
+                    f["regex_proximity"] = proximities
+                    f["surrounding_text"] = f.get("context", "")
+
+                    if re.search(r"\s", f["phrase"]):
+                        multi_word_keyword_matches.append(dict(f))
+
                 matches.extend(found)
-
-            # Regex scanning
-            for rx in REGEX_PATTERNS:
-                for m in rx["compiled"].finditer(text):
-                    snippet = text[max(m.start()-40, 0):m.end()+40]
-
-                    matches.append({
-                        "phrase": rx["name"],
-                        "document": file.filename,
-                        "context": snippet.strip(),
-                        "rejected": False,
-                        "position": m.start()
-                    })
+                keyword_matches.extend(found)
 
         except Exception as e:
             errors.append(f"{file.filename}: {str(e)}")
@@ -229,6 +263,12 @@ def scan():
         "total_documents": len(processed_files),
         "documents_processed": processed_files,
         "total_matches": len(matches),
+        "total_keyword_matches": len(keyword_matches),
+        "total_multi_word_keyword_matches": len(multi_word_keyword_matches),
+        "total_regex_matches": len(regex_matches),
+        "keyword_matches": keyword_matches,
+        "multi_word_keyword_matches": multi_word_keyword_matches,
+        "regex_matches": regex_matches,
         "matches": matches,
         "errors": errors
     })
