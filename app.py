@@ -203,6 +203,7 @@ def scan():
 
                     regex_match = {
                         "phrase": rx["name"],
+                        "pattern": rx["pattern"],
                         "document": file.filename,
                         "context": snippet.strip(),
                         "rejected": False,
@@ -231,6 +232,7 @@ def scan():
                     proximities = [
                         {
                             "regex_name": rx_match["phrase"],
+                            "regex_pattern": rx_match["pattern"],
                             "distance": abs(f["position"] - rx_match["position"]),
                             "regex_position": rx_match["position"],
                             "regex_context": rx_match["context"]
