@@ -3,7 +3,6 @@ import os
 import json
 import tempfile
 import re
-import csv
 import pytesseract
 import cv2
 from flask import Flask, request, jsonify
@@ -21,8 +20,6 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500MB
 
 REGEX_FILE = "regex_patterns.json"
-LEXICON_FILE = "lexicon_latest.csv"
-STOPWORDS_FILE = "english.txt"
 
 # Uncomment if needed on Windows
 # pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -64,39 +61,6 @@ def load_regex_patterns():
 
 
 REGEX_PATTERNS = load_regex_patterns()
-
-
-def load_keywords():
-    keywords = []
-    if not os.path.exists(LEXICON_FILE):
-        return keywords
-
-    with open(LEXICON_FILE, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            kw = (row.get("keyword") or "").strip()
-            if kw:
-                keywords.append(kw)
-
-    return keywords
-
-
-def load_stopwords():
-    stopwords = set()
-    if not os.path.exists(STOPWORDS_FILE):
-        return stopwords
-
-    with open(STOPWORDS_FILE, encoding="utf-8") as f:
-        for line in f:
-            w = line.strip()
-            if w:
-                stopwords.add(w.lower())
-
-    return stopwords
-
-
-LEXICON_KEYWORDS = load_keywords()
-STOPWORDS = load_stopwords()
 
 # -------------------------------
 # Text Extraction Helpers
@@ -146,59 +110,37 @@ def extract_text_from_image(path):
 
 
 # -------------------------------
-# Lexicon adjacent word detection
+# Phrase / Keyword Detection
 # -------------------------------
-WORD_RE = re.compile(r"[A-Za-z0-9]+")
 
-
-def find_adjacent_lexicon_pairs(text, keywords, stopwords, case_sensitive):
+def find_phrases(text, phrases, reject_words, case_sensitive, whole_word):
     results = []
-    if not text or not keywords:
-        return results
 
-    keyword_set = set(keywords) if case_sensitive else {k.lower() for k in keywords}
-    lines = text.splitlines()
-    char_offset = 0
+    flags = 0 if case_sensitive else re.IGNORECASE
 
-    for line in lines:
-        line_proc = line if case_sensitive else line.lower()
-        tokens = [(m.group(0), m.start(), m.end()) for m in WORD_RE.finditer(line_proc)]
+    for phrase in phrases:
+        escaped = re.escape(phrase)
+        pattern = escaped
 
-        for i in range(len(tokens) - 1):
-            w1, s1, e1 = tokens[i]
-            w2, s2, e2 = tokens[i + 1]
+        if whole_word:
+            pattern = rf"\b{escaped}\b"
 
-            if w1.lower() in stopwords or w2.lower() in stopwords:
-                continue
+        for match in re.finditer(pattern, text, flags):
+            start = max(match.start() - 40, 0)
+            end = min(match.end() + 40, len(text))
+            context = text[start:end]
 
-            if w1 not in keyword_set or w2 not in keyword_set:
-                continue
-
-            # Exactly one space between words
-            if s2 != e1 + 1 or line_proc[e1] != " ":
-                continue
-
-            # No punctuation touching either word
-            if (s1 > 0 and line_proc[s1 - 1] != " ") or (
-                e2 < len(line_proc) and line_proc[e2] != " "
-            ):
-                continue
-
-            global_start = char_offset + s1
-            global_end = char_offset + e2
-            context_start = max(0, global_start - 40)
-            context_end = min(len(text), global_end + 40)
-
-            results.append(
-                {
-                    "phrase": text[global_start:global_end],
-                    "context": text[context_start:context_end].strip(),
-                    "rejected": False,
-                    "position": global_start,
-                }
+            rejected = any(
+                re.search(rw, context, flags=re.IGNORECASE)
+                for rw in reject_words
             )
 
-        char_offset += len(line) + 1
+            results.append({
+                "phrase": phrase,
+                "context": context.strip(),
+                "rejected": rejected,
+                "position": match.start()
+            })
 
     return results
 
@@ -220,10 +162,17 @@ def health():
 def scan():
     files = request.files.getlist("files")
 
+    keywords = request.form.get("keywords", "").splitlines()
+    reject_words = request.form.get("reject_words", "").splitlines()
+
     case_sensitive = request.form.get("case_sensitive") == "true"
+    whole_word = request.form.get("whole_word") == "true"
     mode = request.form.get("mode", "phrase")
 
     matches = []
+    keyword_matches = []
+    multi_word_keyword_matches = []
+    regex_matches = []
     errors = []
     processed_files = []
 
@@ -246,27 +195,61 @@ def scan():
 
             processed_files.append(file.filename)
 
-            # Lexicon adjacent word scanning only
-            if mode == "phrase":
-                lexicon_found = find_adjacent_lexicon_pairs(
-                    text, LEXICON_KEYWORDS, STOPWORDS, case_sensitive
-                )
-                for f in lexicon_found:
-                    f["document"] = file.filename
-                matches.extend(lexicon_found)
-
-            # Regex scanning
+            # Regex scanning (collected first for proximity calculations)
+            file_regex_matches = []
             for rx in REGEX_PATTERNS:
                 for m in rx["compiled"].finditer(text):
                     snippet = text[max(m.start()-40, 0):m.end()+40]
 
-                    matches.append({
+                    regex_match = {
                         "phrase": rx["name"],
+                        "pattern": rx["pattern"],
                         "document": file.filename,
                         "context": snippet.strip(),
                         "rejected": False,
                         "position": m.start()
-                    })
+                    }
+
+                    matches.append(regex_match)
+                    regex_matches.append(regex_match)
+                    file_regex_matches.append(regex_match)
+
+            # Keyword / phrase scanning
+            if mode == "phrase":
+                found = find_phrases(
+                    text, keywords, reject_words,
+                    case_sensitive, whole_word
+                )
+
+                phrase_counts = {}
+                for f in found:
+                    phrase_counts[f["phrase"]] = phrase_counts.get(f["phrase"], 0) + 1
+
+                for f in found:
+                    f["document"] = file.filename
+                    f["instance_count"] = phrase_counts[f["phrase"]]
+
+                    proximities = [
+                        {
+                            "regex_name": rx_match["phrase"],
+                            "regex_pattern": rx_match["pattern"],
+                            "distance": abs(f["position"] - rx_match["position"]),
+                            "regex_position": rx_match["position"],
+                            "regex_context": rx_match["context"]
+                        }
+                        for rx_match in file_regex_matches
+                    ]
+
+                    proximities.sort(key=lambda p: p["distance"])
+
+                    f["regex_proximity"] = proximities
+                    f["surrounding_text"] = f.get("context", "")
+
+                    if re.search(r"\s", f["phrase"]):
+                        multi_word_keyword_matches.append(dict(f))
+
+                matches.extend(found)
+                keyword_matches.extend(found)
 
         except Exception as e:
             errors.append(f"{file.filename}: {str(e)}")
@@ -282,6 +265,12 @@ def scan():
         "total_documents": len(processed_files),
         "documents_processed": processed_files,
         "total_matches": len(matches),
+        "total_keyword_matches": len(keyword_matches),
+        "total_multi_word_keyword_matches": len(multi_word_keyword_matches),
+        "total_regex_matches": len(regex_matches),
+        "keyword_matches": keyword_matches,
+        "multi_word_keyword_matches": multi_word_keyword_matches,
+        "regex_matches": regex_matches,
         "matches": matches,
         "errors": errors
     })
