@@ -88,6 +88,24 @@ def collect_files_from_path(path: str, recursive: bool):
 
     return collected
 
+def parse_file_types(value: str):
+    if not value:
+        return None
+    types = set()
+    for item in value.split(","):
+        ext = item.strip().lower()
+        if not ext:
+            continue
+        if not ext.startswith("."):
+            ext = "." + ext
+        types.add(ext)
+    return types or None
+
+def allowed_extension(ext: str, allowed_exts):
+    if allowed_exts is None:
+        return ext in SUPPORTED_EXTENSIONS
+    return ext in allowed_exts
+
 # ======================================================
 # Text extraction
 # ======================================================
@@ -183,6 +201,7 @@ def scan():
     recursive = request.form.get("recursive", "true").lower() == "true"
     log_path = request.form.get("log_path")
     log_to_stdout = request.form.get("log_stdout", "true").lower() == "true"
+    allowed_exts = parse_file_types(request.form.get("file_types"))
 
     log_file = None
     if log_path:
@@ -209,11 +228,18 @@ def scan():
     all_files = []
 
     for f in request.files.getlist("files"):
-        all_files.append(("upload", f))
+        ext = Path(f.filename).suffix.lower()
+        if allowed_extension(ext, allowed_exts):
+            all_files.append(("upload", f))
+        else:
+            log(f"skipped_file: {f.filename} unsupported extension")
 
     if scan_path:
         for p in collect_files_from_path(scan_path, recursive):
-            all_files.append(("path", p))
+            if allowed_extension(p.suffix.lower(), allowed_exts):
+                all_files.append(("path", p))
+            else:
+                log(f"skipped_file: {p} unsupported extension")
 
     results = []
     errors = []

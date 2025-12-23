@@ -183,6 +183,7 @@ Parameters:
 - regex_path: (string) Optional path to regex JSON (default: regex_patterns.json)
 - path: (string) Optional local path to scan on server
 - recursive: (boolean) Scan path recursively (default: true)
+- file_types: (string) Optional comma-separated extensions (e.g. "pdf,docx") to limit scans
 - log_stdout: (boolean) Print progress/matches to stdout (default: true)
 - log_path: (string) Optional log file path (append mode)
 ```
@@ -237,6 +238,13 @@ Scan a local directory on the server:
 curl -X POST http://localhost:5000/scan \
   -F "path=/path/to/documents" \
   -F "recursive=true"
+```
+
+Scan only PDFs and DOCX files:
+```bash
+curl -X POST http://localhost:5000/scan \
+  -F "path=/path/to/documents" \
+  -F "file_types=pdf,docx"
 ```
 
 Use a custom lexicon:
