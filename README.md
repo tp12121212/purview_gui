@@ -1,12 +1,14 @@
-# Document Scanner with OCR & Keyword Detection - Setup Guide
+# Document Scanner with OCR, Lexicon + Regex Correlation - Setup Guide
 
 ## Project Overview
-This is a complete document scanning system with OCR support and intelligent keyword/phrase detection.
+This is a complete document scanning system with OCR support and strict lexicon keyword detection correlated to regex patterns.
 
 **Components:**
 - `app.py` - Flask backend server
 - `requirements.txt` - Python dependencies
 - `index.html` - Web interface (frontend)
+- `lexicon_latest.csv` - Strict multi-word keyword lexicon
+- `regex_patterns.json` - Regex patterns used for correlation
 
 ---
 
@@ -64,26 +66,22 @@ Server running on http://localhost:5000
 
 ## Usage
 
-1. **Upload Documents** - Drag and drop or click to select files
+1. **Provide Documents**
+   - Upload files via UI or API
+   - Or scan a local path on the server using `path` + `recursive`
    - Supports: PDF, Word (.docx), Excel (.xlsx), JPEG, PNG, TIFF
 
 2. **Configure Detection**
-   - Enter keywords to find (one per line)
-   - Enter reject words/phrases to filter results
-   - Choose detection mode:
-     - **Phrase Detection**: Finds adjacent keywords exactly as typed
-     - **Simple Keywords**: Finds individual keywords
+   - Keywords are loaded from `lexicon_latest.csv` by default
+   - Regex patterns are loaded from `regex_patterns.json`
+   - Only strict multi-word keywords are used from the lexicon
 
-3. **Set Options**
-   - Case Sensitive: Match exact case
-   - Whole Word Match: Only match complete words
+3. **Scan & Analyze** - Click to process documents
 
-4. **Scan & Analyze** - Click to process documents
-
-5. **Review Results**
-   - View matches with context
-   - Rejected matches show with ⚠️ warning
-   - Export as JSON or CSV
+4. **Review Results**
+   - Keyword hits are correlated to the nearest regex hit when both exist
+   - Fallback mode returns standalone regex hits and keywords
+   - Results include document, position, and context snippet
 
 ---
 
@@ -92,9 +90,11 @@ Server running on http://localhost:5000
 ### app.py (Flask Backend)
 Handles:
 - File upload and validation
+- Optional file collection from local path
 - Text extraction from all document types
 - OCR processing for images using Tesseract
-- Keyword phrase detection with filters
+- Strict lexicon keyword detection
+- Regex pattern matching and proximity correlation
 - Results compilation and JSON response
 
 Key Functions:
@@ -102,7 +102,6 @@ Key Functions:
 - `extract_text_from_docx()` - Extracts from Word documents
 - `extract_text_from_xlsx()` - Extracts from Excel files
 - `extract_text_from_image()` - OCR processing using Tesseract
-- `find_phrases()` - Intelligent keyword/phrase detection
 - `/scan` endpoint - Main API for document processing
 
 ### requirements.txt
@@ -115,6 +114,12 @@ Python packages:
 - `opencv-python` - Image manipulation
 - `pdf2image` - PDF to image conversion
 - `Flask` - Web server framework
+ 
+### lexicon_latest.csv
+Lexicon CSV containing keywords. Only strict multi-word, alphanumeric phrases are used.
+
+### regex_patterns.json
+JSON list of regex patterns with `name` and `pattern` used to find structured values.
 
 ---
 
@@ -174,11 +179,9 @@ Content-Type: multipart/form-data
 
 Parameters:
 - files: (file array) Document files
-- keywords: (string) Keywords separated by newlines
-- reject_words: (string) Reject words separated by newlines
-- case_sensitive: (boolean) Case sensitive matching
-- whole_word: (boolean) Whole word matching
-- mode: (string) 'phrase' or 'keyword'
+- lexicon_path: (string) Optional path to lexicon CSV (default: lexicon_latest.csv)
+- path: (string) Optional local path to scan on server
+- recursive: (boolean) Scan path recursively if true
 ```
 
 **Response:**
@@ -210,6 +213,34 @@ Check server status
   "status": "Server is running",
   "ocr_available": true
 }
+```
+
+### Run the API and test with curl
+
+Start the server:
+```bash
+python app.py
+```
+
+Upload files directly:
+```bash
+curl -X POST http://localhost:5000/scan \
+  -F "files=@/path/to/file1.pdf" \
+  -F "files=@/path/to/file2.docx"
+```
+
+Scan a local directory on the server:
+```bash
+curl -X POST http://localhost:5000/scan \
+  -F "path=/path/to/documents" \
+  -F "recursive=true"
+```
+
+Use a custom lexicon:
+```bash
+curl -X POST http://localhost:5000/scan \
+  -F "lexicon_path=/path/to/custom_lexicon.csv" \
+  -F "path=/path/to/documents"
 ```
 
 ---
