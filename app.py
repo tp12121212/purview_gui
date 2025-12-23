@@ -182,6 +182,12 @@ def scan():
     scan_path = request.form.get("path")
     recursive = request.form.get("recursive", "false").lower() == "true"
 
+    if not os.path.isfile(regex_path):
+        return jsonify({
+            "success": False,
+            "error": f"regex_path not found: {regex_path}"
+        }), 400
+
     keywords = load_keywords(lexicon_path)
     regex_patterns = load_regex_patterns(regex_path)
 
