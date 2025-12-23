@@ -231,15 +231,11 @@ def scan():
         ext = Path(f.filename).suffix.lower()
         if allowed_extension(ext, allowed_exts):
             all_files.append(("upload", f))
-        else:
-            log(f"skipped_file: {f.filename} unsupported extension")
 
     if scan_path:
         for p in collect_files_from_path(scan_path, recursive):
             if allowed_extension(p.suffix.lower(), allowed_exts):
                 all_files.append(("path", p))
-            else:
-                log(f"skipped_file: {p} unsupported extension")
 
     results = []
     errors = []
