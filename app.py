@@ -63,8 +63,8 @@ def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH):
 # Regex loading
 # ======================================================
 
-def load_regex_patterns():
-    with open(REGEX_PATTERNS_PATH, encoding="utf-8") as f:
+def load_regex_patterns(regex_path: str = REGEX_PATTERNS_PATH):
+    with open(regex_path, encoding="utf-8") as f:
         return json.load(f)
 
 # ======================================================
@@ -178,11 +178,12 @@ def nearest_regex_info(start, end, regex_hits):
 @app.route("/scan", methods=["POST"])
 def scan():
     lexicon_path = request.form.get("lexicon_path", DEFAULT_LEXICON_PATH)
+    regex_path = request.form.get("regex_path", REGEX_PATTERNS_PATH)
     scan_path = request.form.get("path")
     recursive = request.form.get("recursive", "false").lower() == "true"
 
     keywords = load_keywords(lexicon_path)
-    regex_patterns = load_regex_patterns()
+    regex_patterns = load_regex_patterns(regex_path)
 
     all_files = []
 

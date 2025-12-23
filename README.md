@@ -180,6 +180,7 @@ Content-Type: multipart/form-data
 Parameters:
 - files: (file array) Document files
 - lexicon_path: (string) Optional path to lexicon CSV (default: lexicon_latest.csv)
+- regex_path: (string) Optional path to regex JSON (default: regex_patterns.json)
 - path: (string) Optional local path to scan on server
 - recursive: (boolean) Scan path recursively if true
 ```
@@ -240,6 +241,13 @@ Use a custom lexicon:
 ```bash
 curl -X POST http://localhost:5000/scan \
   -F "lexicon_path=/path/to/custom_lexicon.csv" \
+  -F "path=/path/to/documents"
+```
+
+Use a custom regex file:
+```bash
+curl -X POST http://localhost:5000/scan \
+  -F "regex_path=/path/to/custom_regex.json" \
   -F "path=/path/to/documents"
 ```
 
