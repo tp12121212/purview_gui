@@ -253,8 +253,6 @@ def scan():
                 document = str(item)
                 text = extract_text_from_file_path(item)
 
-            log(f"processed_file: {document}")
-
             # -------------------------
             # Regex hits
             # -------------------------
@@ -285,11 +283,15 @@ def scan():
             # Primary correlation mode
             # -------------------------
             if regex_hits and keyword_hits:
+                logged_file = False
                 for k in keyword_hits:
                     nearest_name, nearest_dist = nearest_regex_info(
                         k["start"], k["end"], regex_hits
                     )
 
+                    if not logged_file:
+                        log(f"matched_file: {document}")
+                        logged_file = True
                     log(
                         f"match: keyword={k['phrase']} "
                         f"document={document} "
@@ -311,7 +313,11 @@ def scan():
             # Fallback mode
             # -------------------------
             else:
+                logged_file = False
                 for r in regex_hits:
+                    if not logged_file:
+                        log(f"matched_file: {document}")
+                        logged_file = True
                     log(
                         f"match: regex={r['name']} "
                         f"document={document} "
@@ -328,6 +334,9 @@ def scan():
                     })
 
                 for k in keyword_hits:
+                    if not logged_file:
+                        log(f"matched_file: {document}")
+                        logged_file = True
                     log(
                         f"match: keyword={k['phrase']} "
                         f"document={document}"

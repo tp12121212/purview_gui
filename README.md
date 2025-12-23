@@ -271,7 +271,7 @@ curl -X POST http://localhost:5000/scan \
 ### Logging Output
 Example lines when logging to stdout or a file:
 ```
-processed_file: /path/to/documents/file1.pdf
+matched_file: /path/to/documents/file1.pdf
 match: keyword=invoice number document=/path/to/documents/file1.pdf nearest_regex=Date distance=12
 match: regex=Email document=/path/to/documents/file2.docx value=jane@example.com
 error: document=/path/to/documents/bad_file.pdf error=EOF marker not found

@@ -2,6 +2,6 @@
   
   {
     "name": "australia_passport_number_latest",
-    "pattern": "(?i)PASSPORT[\\s\\S]{0,200}(?:P[A-E]|RA|N|M)[0-9]{7}|(?:P[A-E]|RA|N|M)[0-9]{7}[\\s\\S]{0,200}PASSPORT"
+    "pattern": "(?i)DOCUMENT|PASSPORT[\\s\\S]{0,200}(?:P[A-E]|RA|N|M)[0-9]{7}|(?:P[A-E]|RA|N|M)[0-9]{7}[\\s\\S]{0,200}PASSPORT|DOCUMENT"
   }
 ]
