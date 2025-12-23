@@ -182,7 +182,9 @@ Parameters:
 - lexicon_path: (string) Optional path to lexicon CSV (default: lexicon_latest.csv)
 - regex_path: (string) Optional path to regex JSON (default: regex_patterns.json)
 - path: (string) Optional local path to scan on server
-- recursive: (boolean) Scan path recursively if true
+- recursive: (boolean) Scan path recursively (default: true)
+- log_stdout: (boolean) Print progress/matches to stdout (default: true)
+- log_path: (string) Optional log file path (append mode)
 ```
 
 **Response:**
@@ -249,6 +251,22 @@ Use a custom regex file:
 curl -X POST http://localhost:5000/scan \
   -F "regex_path=/path/to/custom_regex.json" \
   -F "path=/path/to/documents"
+```
+
+Log matches to a file:
+```bash
+curl -X POST http://localhost:5000/scan \
+  -F "path=/path/to/documents" \
+  -F "log_path=/path/to/scan.log"
+```
+
+### Logging Output
+Example lines when logging to stdout or a file:
+```
+processed_file: /path/to/documents/file1.pdf
+match: keyword=invoice number document=/path/to/documents/file1.pdf nearest_regex=Date distance=12
+match: regex=Email document=/path/to/documents/file2.docx value=jane@example.com
+error: document=/path/to/documents/bad_file.pdf error=EOF marker not found
 ```
 
 ---

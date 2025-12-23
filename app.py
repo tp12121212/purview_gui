@@ -180,9 +180,24 @@ def scan():
     lexicon_path = request.form.get("lexicon_path", DEFAULT_LEXICON_PATH)
     regex_path = request.form.get("regex_path", REGEX_PATTERNS_PATH)
     scan_path = request.form.get("path")
-    recursive = request.form.get("recursive", "false").lower() == "true"
+    recursive = request.form.get("recursive", "true").lower() == "true"
+    log_path = request.form.get("log_path")
+    log_to_stdout = request.form.get("log_stdout", "true").lower() == "true"
+
+    log_file = None
+    if log_path:
+        log_file = open(log_path, "a", encoding="utf-8")
+
+    def log(line: str):
+        if log_to_stdout:
+            print(line)
+        if log_file:
+            log_file.write(line + "\n")
+            log_file.flush()
 
     if not os.path.isfile(regex_path):
+        if log_file:
+            log_file.close()
         return jsonify({
             "success": False,
             "error": f"regex_path not found: {regex_path}"
@@ -211,6 +226,8 @@ def scan():
             else:
                 document = str(item)
                 text = extract_text_from_file_path(item)
+
+            log(f"processed_file: {document}")
 
             # -------------------------
             # Regex hits
@@ -247,6 +264,12 @@ def scan():
                         k["start"], k["end"], regex_hits
                     )
 
+                    log(
+                        f"match: keyword={k['phrase']} "
+                        f"document={document} "
+                        f"nearest_regex={nearest_name} "
+                        f"distance={nearest_dist}"
+                    )
                     results.append({
                         "type": "keyword",
                         "fallback": False,
@@ -263,6 +286,11 @@ def scan():
             # -------------------------
             else:
                 for r in regex_hits:
+                    log(
+                        f"match: regex={r['name']} "
+                        f"document={document} "
+                        f"value={r['value']}"
+                    )
                     results.append({
                         "type": "regex",
                         "fallback": True,
@@ -274,6 +302,10 @@ def scan():
                     })
 
                 for k in keyword_hits:
+                    log(
+                        f"match: keyword={k['phrase']} "
+                        f"document={document}"
+                    )
                     results.append({
                         "type": "keyword",
                         "fallback": True,
@@ -285,6 +317,10 @@ def scan():
 
         except Exception as e:
             errors.append(f"{document}: {str(e)}")
+            log(f"error: document={document} error={e}")
+
+    if log_file:
+        log_file.close()
 
     return jsonify({
         "success": True,
