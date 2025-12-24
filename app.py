@@ -107,6 +107,21 @@ def allowed_extension(ext: str, allowed_exts):
     return ext in allowed_exts
 
 # ======================================================
+# Scan iteration
+# ======================================================
+
+def iter_scan_items(files, scan_path: str, recursive: bool, allowed_exts):
+    for f in files:
+        ext = Path(f.filename).suffix.lower()
+        if allowed_extension(ext, allowed_exts):
+            yield ("upload", f)
+
+    if scan_path:
+        for p in collect_files_from_path(scan_path, recursive):
+            if allowed_extension(p.suffix.lower(), allowed_exts):
+                yield ("path", p)
+
+# ======================================================
 # Text extraction
 # ======================================================
 
@@ -202,6 +217,9 @@ def scan():
     log_path = request.form.get("log_path")
     log_to_stdout = request.form.get("log_stdout", "true").lower() == "true"
     allowed_exts = parse_file_types(request.form.get("file_types"))
+    output_path = request.form.get("output_path")
+    batch_size = int(request.form.get("batch_size", "500"))
+    return_limit = int(request.form.get("return_limit", "0"))
 
     log_file = None
     if log_path:
@@ -225,22 +243,38 @@ def scan():
     keywords = load_keywords(lexicon_path)
     regex_patterns = load_regex_patterns(regex_path)
 
-    all_files = []
-
-    for f in request.files.getlist("files"):
-        ext = Path(f.filename).suffix.lower()
-        if allowed_extension(ext, allowed_exts):
-            all_files.append(("upload", f))
-
-    if scan_path:
-        for p in collect_files_from_path(scan_path, recursive):
-            if allowed_extension(p.suffix.lower(), allowed_exts):
-                all_files.append(("path", p))
+    output_file = None
+    if output_path:
+        output_file = open(output_path, "a", encoding="utf-8")
 
     results = []
+    batch_results = []
     errors = []
+    documents_scanned = 0
+    total_matches = 0
 
-    for source, item in all_files:
+    def record_match(item):
+        nonlocal total_matches
+        total_matches += 1
+
+        if output_file:
+            batch_results.append(item)
+            if len(batch_results) >= batch_size:
+                output_file.write("\n".join(json.dumps(r) for r in batch_results))
+                output_file.write("\n")
+                output_file.flush()
+                batch_results.clear()
+
+        if not output_file or (return_limit > 0 and len(results) < return_limit):
+            results.append(item)
+
+    for source, item in iter_scan_items(
+        request.files.getlist("files"),
+        scan_path,
+        recursive,
+        allowed_exts,
+    ):
+        documents_scanned += 1
         try:
             if source == "upload":
                 document = item.filename
@@ -294,7 +328,7 @@ def scan():
                         f"nearest_regex={nearest_name} "
                         f"distance={nearest_dist}"
                     )
-                    results.append({
+                    record_match({
                         "type": "keyword",
                         "fallback": False,
                         "phrase": k["phrase"],
@@ -319,7 +353,7 @@ def scan():
                         f"document={document} "
                         f"value={r['value']}"
                     )
-                    results.append({
+                    record_match({
                         "type": "regex",
                         "fallback": True,
                         "regex_name": r["name"],
@@ -337,7 +371,7 @@ def scan():
                         f"match: keyword={k['phrase']} "
                         f"document={document}"
                     )
-                    results.append({
+                    record_match({
                         "type": "keyword",
                         "fallback": True,
                         "phrase": k["phrase"],
@@ -350,13 +384,22 @@ def scan():
             errors.append(f"{document}: {str(e)}")
             log(f"error: document={document} error={e}")
 
+    if output_file and batch_results:
+        output_file.write("\n".join(json.dumps(r) for r in batch_results))
+        output_file.write("\n")
+        output_file.flush()
+        batch_results.clear()
+
+    if output_file:
+        output_file.close()
+
     if log_file:
         log_file.close()
 
     return jsonify({
         "success": True,
-        "documents_scanned": len(all_files),
-        "total_matches": len(results),
+        "documents_scanned": documents_scanned,
+        "total_matches": total_matches,
         "matches": results,
         "errors": errors
     })

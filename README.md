@@ -186,22 +186,27 @@ Parameters:
 - file_types: (string) Optional comma-separated extensions (e.g. "pdf,docx") to limit scans
 - log_stdout: (boolean) Print progress/matches to stdout (default: true)
 - log_path: (string) Optional log file path (append mode)
+- output_path: (string) Optional JSONL output file path (append mode)
+- batch_size: (integer) Number of matches to buffer before writing to output_path (default: 500)
+- return_limit: (integer) Max matches to include in response when output_path is set (0 = none)
 ```
 
 **Response:**
 ```json
 {
   "success": true,
-  "total_documents": 2,
-  "documents_processed": ["file1.pdf", "file2.docx"],
+  "documents_scanned": 2,
   "total_matches": 5,
   "matches": [
     {
+      "type": "keyword",
+      "fallback": false,
       "phrase": "invoice number",
-      "document": "file1.pdf",
-      "context": "...The invoice number is 12345...",
-      "rejected": false,
-      "position": 245
+      "document": "/path/to/file1.pdf",
+      "position": 245,
+      "nearest_regex": "Date",
+      "nearest_regex_distance": 12,
+      "context": "...The invoice number is 12345..."
     }
   ],
   "errors": []
@@ -214,7 +219,7 @@ Check server status
 **Response:**
 ```json
 {
-  "status": "Server is running",
+  "status": "ok",
   "ocr_available": true
 }
 ```
@@ -281,7 +286,7 @@ error: document=/path/to/documents/bad_file.pdf error=EOF marker not found
 
 ## Performance Tips
 
-1. **Large Documents**: Process in batches for faster results
+1. **Large Scans**: Use `output_path` + `batch_size` to stream results to disk
 2. **OCR Speed**: Higher resolution images = slower OCR but better accuracy
 3. **Keywords**: More keywords = longer processing time
 4. **Caching**: Results are not cached; each scan re-processes
@@ -292,7 +297,7 @@ error: document=/path/to/documents/bad_file.pdf error=EOF marker not found
 
 - Files are temporarily stored in system temp folder and deleted after processing
 - No files are permanently saved
-- Maximum upload size: 100MB (configurable)
+- Maximum upload size: 500MB (configurable)
 - CORS disabled by default (local use only)
 
 For production use, add:
