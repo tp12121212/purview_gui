@@ -5,6 +5,9 @@ import tempfile
 from pathlib import Path
 from flask import Flask, request, jsonify
 import re
+import html as html_lib
+from email import policy
+from email.parser import BytesParser
 
 import pytesseract
 from PIL import Image
@@ -12,6 +15,7 @@ import PyPDF2
 import docx
 import openpyxl
 from pdf2image import convert_from_path
+import extract_msg
 
 # ======================================================
 # Flask app
@@ -28,10 +32,12 @@ REGEX_PATTERNS_PATH = "regex_patterns.json"
 
 SUPPORTED_EXTENSIONS = {
     ".pdf", ".docx", ".xlsx",
-    ".jpg", ".jpeg", ".png", ".tif", ".tiff"
+    ".jpg", ".jpeg", ".png", ".tif", ".tiff",
+    ".eml", ".msg"
 }
 
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500MB
+MAX_NESTED_DEPTH = 2
 
 # ======================================================
 # Lexicon loading (STRICT multi-word only)
@@ -162,8 +168,99 @@ def extract_text_from_image(path):
     img = Image.open(path)
     return pytesseract.image_to_string(img)
 
+def strip_html(text):
+    if not text:
+        return ""
+    text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", text)
+    text = re.sub(r"(?is)<.*?>", " ", text)
+    return html_lib.unescape(text)
 
-def extract_text_from_file_path(path: Path):
+def extract_text_from_attachment_bytes(filename, content, depth):
+    if depth > MAX_NESTED_DEPTH:
+        return ""
+    ext = Path(filename).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        return ""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        tmp.write(content)
+        tmp.flush()
+        return extract_text_from_file_path(Path(tmp.name), depth=depth)
+
+def extract_text_from_eml_bytes(content, depth):
+    if depth > MAX_NESTED_DEPTH:
+        return ""
+    msg = BytesParser(policy=policy.default).parsebytes(content)
+    parts = []
+    for part in msg.walk():
+        if part.is_multipart():
+            continue
+        content_disposition = part.get_content_disposition()
+        filename = part.get_filename()
+        content_type = part.get_content_type()
+
+        if content_disposition in {"attachment", "inline"} or filename:
+            if filename:
+                payload = part.get_payload(decode=True)
+                if payload:
+                    parts.append(
+                        extract_text_from_attachment_bytes(
+                            filename, payload, depth + 1
+                        )
+                    )
+            continue
+
+        if content_type == "text/plain":
+            try:
+                parts.append(part.get_content())
+            except (LookupError, UnicodeDecodeError):
+                payload = part.get_payload(decode=True) or b""
+                parts.append(payload.decode(errors="ignore"))
+        elif content_type == "text/html":
+            try:
+                parts.append(strip_html(part.get_content()))
+            except (LookupError, UnicodeDecodeError):
+                payload = part.get_payload(decode=True) or b""
+                parts.append(strip_html(payload.decode(errors="ignore")))
+
+    return "\n".join(p for p in parts if p)
+
+def extract_text_from_eml_path(path, depth):
+    with open(path, "rb") as f:
+        return extract_text_from_eml_bytes(f.read(), depth=depth)
+
+def extract_text_from_msg_path(path, depth):
+    if depth > MAX_NESTED_DEPTH:
+        return ""
+    msg = extract_msg.Message(path)
+    parts = []
+    try:
+        if msg.body:
+            parts.append(msg.body)
+        elif msg.htmlBody:
+            parts.append(strip_html(msg.htmlBody))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for attachment in msg.attachments:
+                filename = (
+                    attachment.longFilename
+                    or attachment.shortFilename
+                    or attachment.filename
+                )
+                if not filename:
+                    continue
+                saved_path = attachment.save(customPath=tmpdir)
+                if saved_path:
+                    parts.append(
+                        extract_text_from_file_path(
+                            Path(saved_path), depth=depth + 1
+                        )
+                    )
+    finally:
+        msg.close()
+
+    return "\n".join(p for p in parts if p)
+
+
+def extract_text_from_file_path(path: Path, depth=0):
     ext = path.suffix.lower()
     if ext == ".pdf":
         return extract_text_from_pdf(str(path))
@@ -173,6 +270,10 @@ def extract_text_from_file_path(path: Path):
         return extract_text_from_xlsx(str(path))
     if ext in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
         return extract_text_from_image(str(path))
+    if ext == ".eml":
+        return extract_text_from_eml_path(str(path), depth=depth)
+    if ext == ".msg":
+        return extract_text_from_msg_path(str(path), depth=depth)
     return ""
 
 

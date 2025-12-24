@@ -1,7 +1,7 @@
 # Document Scanner with OCR, Lexicon + Regex Correlation - Setup Guide
 
 ## Project Overview
-This is a complete document scanning system with OCR support and strict lexicon keyword detection correlated to regex patterns.
+This is a complete document scanning system with OCR support and strict lexicon keyword detection correlated to regex patterns. It also processes email files (.eml, .msg), including message bodies and supported attachments.
 
 **Components:**
 - `app.py` - Flask backend server
@@ -69,7 +69,8 @@ Server running on http://localhost:5000
 1. **Provide Documents**
    - Upload files via UI or API
    - Or scan a local path on the server using `path` + `recursive`
-   - Supports: PDF, Word (.docx), Excel (.xlsx), JPEG, PNG, TIFF
+   - Supports: PDF, Word (.docx), Excel (.xlsx), JPEG, PNG, TIFF, email (.eml, .msg)
+   - For emails, the body text and supported attachments are extracted and scanned
 
 2. **Configure Detection**
    - Keywords are loaded from `lexicon_latest.csv` by default
@@ -92,6 +93,7 @@ Handles:
 - File upload and validation
 - Optional file collection from local path
 - Text extraction from all document types
+- Email body and attachment extraction for .eml and .msg files
 - OCR processing for images using Tesseract
 - Strict lexicon keyword detection
 - Regex pattern matching and proximity correlation
@@ -114,6 +116,7 @@ Python packages:
 - `opencv-python` - Image manipulation
 - `pdf2image` - PDF to image conversion
 - `Flask` - Web server framework
+- `extract-msg` - Outlook .msg parsing (body + attachments)
  
 ### lexicon_latest.csv
 Lexicon CSV containing keywords. Only strict multi-word, alphanumeric phrases are used.
