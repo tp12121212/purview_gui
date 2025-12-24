@@ -4,6 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import re
 import html as html_lib
 from email import policy
@@ -22,6 +23,7 @@ import extract_msg
 # ======================================================
 
 app = Flask(__name__)
+CORS(app)
 
 # ======================================================
 # Configuration

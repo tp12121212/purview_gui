@@ -117,6 +117,7 @@ Python packages:
 - `pdf2image` - PDF to image conversion
 - `Flask` - Web server framework
 - `extract-msg` - Outlook .msg parsing (body + attachments)
+- `flask-cors` - Allow the local HTML UI to call the backend
  
 ### lexicon_latest.csv
 Lexicon CSV containing keywords. Only strict multi-word, alphanumeric phrases are used.

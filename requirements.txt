@@ -9,3 +9,4 @@ opencv-python>=4.9.0.80
 pdf2image>=1.16.3
 regex>=2023.12.25
 extract-msg>=0.45.0
+flask-cors>=4.0.0

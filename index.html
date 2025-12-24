@@ -460,7 +460,7 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'http://localhost:5000';
+        const API_BASE_URL = 'http://127.0.0.1:5000';
         
         const state = {
             files: [],
@@ -493,7 +493,7 @@
                 statusDiv.textContent = '🟢 Connected to backend server';
             } else {
                 statusDiv.className = 'server-status disconnected';
-                statusDiv.textContent = '🔴 Backend server not found. Make sure "python app.py" is running on http://localhost:5000';
+                statusDiv.textContent = '🔴 Backend server not found. Make sure "python app.py" is running on http://127.0.0.1:5000';
             }
         }
 
