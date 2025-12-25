@@ -18,8 +18,6 @@ import openpyxl
 from pdf2image import convert_from_path
 import extract_msg
 import warnings
-import cv2
-import numpy as np
 
 # ======================================================
 # Flask app
@@ -50,8 +48,6 @@ SUPPORTED_EXTENSIONS = {
 
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500MB
 MAX_NESTED_DEPTH = 2
-OCR_PDF_DPI = 350
-OCR_TESSERACT_CONFIG = "--oem 3 --psm 6"
 
 # ======================================================
 # Lexicon loading (STRICT multi-word only)
@@ -155,12 +151,9 @@ def extract_text_from_pdf(path):
     if text.strip():
         return text
 
-    images = convert_from_path(path, dpi=OCR_PDF_DPI)
+    images = convert_from_path(path)
     for img in images:
-        text += pytesseract.image_to_string(
-            preprocess_image(img),
-            config=OCR_TESSERACT_CONFIG
-        )
+        text += pytesseract.image_to_string(img)
 
     return text
 
@@ -183,25 +176,7 @@ def extract_text_from_xlsx(path):
 
 def extract_text_from_image(path):
     img = Image.open(path)
-    return pytesseract.image_to_string(
-        preprocess_image(img),
-        config=OCR_TESSERACT_CONFIG
-    )
-
-def preprocess_image(img: Image.Image) -> Image.Image:
-    # OCR-oriented preprocessing to improve scan quality.
-    gray = img.convert("L")
-    np_img = np.array(gray)
-    np_img = cv2.bilateralFilter(np_img, 9, 75, 75)
-    np_img = cv2.adaptiveThreshold(
-        np_img,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        31,
-        15
-    )
-    return Image.fromarray(np_img)
+    return pytesseract.image_to_string(img)
 
 def strip_html(text):
     if not text:
