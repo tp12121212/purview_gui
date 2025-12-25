@@ -329,6 +329,8 @@ def scan():
     log_to_stdout = request.form.get("log_stdout", "true").lower() == "true"
     debug_text = request.form.get("debug_text", "false").lower() == "true"
     debug_text_path = request.form.get("debug_text_path")
+    regex_output_path = request.form.get("regex_output_path") or "regex_matches.csv"
+    keyword_output_path = request.form.get("keyword_output_path") or "keyword_matches.csv"
     allowed_exts = parse_file_types(request.form.get("file_types"))
     output_path = request.form.get("output_path")
     batch_size = int(request.form.get("batch_size", "500"))
@@ -351,6 +353,41 @@ def scan():
             }), 400
         debug_file = open(debug_text_path, "a", encoding="utf-8")
 
+    regex_csv_file = None
+    regex_csv_writer = None
+    if regex_output_path:
+        regex_csv_file = open(regex_output_path, "a", encoding="utf-8", newline="")
+        regex_csv_writer = csv.DictWriter(
+            regex_csv_file,
+            fieldnames=[
+                "regex_name",
+                "document",
+                "position",
+                "value",
+                "context",
+            ],
+        )
+        if os.path.getsize(regex_output_path) == 0:
+            regex_csv_writer.writeheader()
+
+    keyword_csv_file = None
+    keyword_csv_writer = None
+    if keyword_output_path:
+        keyword_csv_file = open(keyword_output_path, "a", encoding="utf-8", newline="")
+        keyword_csv_writer = csv.DictWriter(
+            keyword_csv_file,
+            fieldnames=[
+                "phrase",
+                "document",
+                "position",
+                "context",
+                "nearest_regex",
+                "nearest_regex_distance",
+            ],
+        )
+        if os.path.getsize(keyword_output_path) == 0:
+            keyword_csv_writer.writeheader()
+
     def log(line: str):
         if log_to_stdout:
             print(line)
@@ -368,6 +405,10 @@ def scan():
             log_file.close()
         if debug_file:
             debug_file.close()
+        if regex_csv_file:
+            regex_csv_file.close()
+        if keyword_csv_file:
+            keyword_csv_file.close()
         return jsonify({
             "success": False,
             "error": f"regex_path not found: {regex_path}"
@@ -466,6 +507,14 @@ def scan():
                     "value": r["value"],
                     "context": text[max(0, r["start"]-50):r["end"]+50]
                 })
+                if regex_csv_writer:
+                    regex_csv_writer.writerow({
+                        "regex_name": r["name"],
+                        "document": document,
+                        "position": r["start"],
+                        "value": r["value"],
+                        "context": text[max(0, r["start"]-50):r["end"]+50],
+                    })
 
             for k in keyword_hits:
                 if not logged_file:
@@ -491,6 +540,15 @@ def scan():
                     "nearest_regex_distance": nearest_dist,
                     "context": text[max(0, k["start"]-50):k["end"]+50]
                 })
+                if keyword_csv_writer:
+                    keyword_csv_writer.writerow({
+                        "phrase": k["phrase"],
+                        "document": document,
+                        "position": k["start"],
+                        "context": text[max(0, k["start"]-50):k["end"]+50],
+                        "nearest_regex": nearest_name,
+                        "nearest_regex_distance": nearest_dist,
+                    })
 
         except Exception as e:
             errors.append(f"{document}: {str(e)}")
@@ -509,6 +567,10 @@ def scan():
         log_file.close()
     if debug_file:
         debug_file.close()
+    if regex_csv_file:
+        regex_csv_file.close()
+    if keyword_csv_file:
+        keyword_csv_file.close()
 
     return jsonify({
         "success": True,
