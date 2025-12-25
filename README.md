@@ -190,6 +190,8 @@ Parameters:
 - file_types: (string) Optional comma-separated extensions (e.g. "pdf,docx") to limit scans
 - log_stdout: (boolean) Print progress/matches to stdout (default: true)
 - log_path: (string) Optional log file path (append mode)
+- debug_text: (boolean) Log extracted text for every file (default: false)
+- debug_text_path: (string) Output file for extracted text logs (default: extracted_text.log)
 - output_path: (string) Optional JSONL output file path (append mode)
 - batch_size: (integer) Number of matches to buffer before writing to output_path (default: 500)
 - return_limit: (integer) Max matches to include in response when output_path is set (0 = none)
