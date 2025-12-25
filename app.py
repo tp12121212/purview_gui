@@ -50,7 +50,7 @@ app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500MB
 MAX_NESTED_DEPTH = 2
 
 # ======================================================
-# Lexicon loading (STRICT two-word only)
+# Lexicon loading (single-word only)
 # ======================================================
 
 def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH):
@@ -69,9 +69,9 @@ def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH):
 
             value = value.strip()
 
-            # Exactly two words, single literal space, alnum only
-            if re.fullmatch(r"[A-Za-z0-9]+ [A-Za-z0-9]+", value):
-                keywords.append(value)
+            # Single word, alnum only
+            if re.fullmatch(r"[A-Za-z0-9]+", value):
+                keywords.append(value.lower())
 
     return keywords
 
@@ -415,7 +415,13 @@ def scan():
         }), 400
 
     keywords = load_keywords(lexicon_path)
+    keyword_set = set(keywords)
     regex_patterns = load_regex_patterns(regex_path)
+    if debug_text:
+        log_debug_text("keywords_begin")
+        for kw in keywords:
+            log_debug_text(kw)
+        log_debug_text("keywords_end")
 
     output_file = None
     if output_path:
@@ -479,13 +485,20 @@ def scan():
             # Keyword hits (strict)
             # -------------------------
             keyword_hits = []
-            for kw in keywords:
-                pat = re.compile(rf"\b{re.escape(kw)}\b")
-                for m in pat.finditer(text):
+            token_iter = list(re.finditer(r"[A-Za-z0-9]+", text))
+            for idx in range(len(token_iter) - 1):
+                first = token_iter[idx]
+                second = token_iter[idx + 1]
+                between = text[first.end():second.start()]
+                if between != " ":
+                    continue
+                w1 = first.group(0).lower()
+                w2 = second.group(0).lower()
+                if w1 in keyword_set and w2 in keyword_set:
                     keyword_hits.append({
-                        "phrase": kw,
-                        "start": m.start(),
-                        "end": m.end()
+                        "phrase": f"{w1} {w2}",
+                        "start": first.start(),
+                        "end": second.end()
                     })
 
             logged_file = False
