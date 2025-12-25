@@ -328,6 +328,7 @@ def scan():
     log_path = request.form.get("log_path")
     log_to_stdout = request.form.get("log_stdout", "true").lower() == "true"
     debug_text = request.form.get("debug_text", "false").lower() == "true"
+    debug_text_path = request.form.get("debug_text_path")
     allowed_exts = parse_file_types(request.form.get("file_types"))
     output_path = request.form.get("output_path")
     batch_size = int(request.form.get("batch_size", "500"))
@@ -337,6 +338,19 @@ def scan():
     if log_path:
         log_file = open(log_path, "a", encoding="utf-8")
 
+    debug_file = None
+    if debug_text:
+        if not debug_text_path:
+            debug_text_path = "extracted_text.log"
+        if output_path and os.path.abspath(debug_text_path) == os.path.abspath(output_path):
+            if log_file:
+                log_file.close()
+            return jsonify({
+                "success": False,
+                "error": "debug_text_path must be different from output_path"
+            }), 400
+        debug_file = open(debug_text_path, "a", encoding="utf-8")
+
     def log(line: str):
         if log_to_stdout:
             print(line)
@@ -344,9 +358,16 @@ def scan():
             log_file.write(line + "\n")
             log_file.flush()
 
+    def log_debug_text(line: str):
+        if debug_file:
+            debug_file.write(line + "\n")
+            debug_file.flush()
+
     if not os.path.isfile(regex_path):
         if log_file:
             log_file.close()
+        if debug_file:
+            debug_file.close()
         return jsonify({
             "success": False,
             "error": f"regex_path not found: {regex_path}"
@@ -396,9 +417,9 @@ def scan():
                 text = extract_text_from_file_path(item)
 
             if debug_text:
-                log(f"extracted_text_begin: {document}")
-                log(text)
-                log(f"extracted_text_end: {document}")
+                log_debug_text(f"extracted_text_begin: {document}")
+                log_debug_text(text)
+                log_debug_text(f"extracted_text_end: {document}")
 
             # -------------------------
             # Regex hits
@@ -512,6 +533,8 @@ def scan():
 
     if log_file:
         log_file.close()
+    if debug_file:
+        debug_file.close()
 
     return jsonify({
         "success": True,
