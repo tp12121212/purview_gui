@@ -17,6 +17,7 @@ import docx
 import openpyxl
 from pdf2image import convert_from_path
 import extract_msg
+import warnings
 
 # ======================================================
 # Flask app
@@ -24,6 +25,13 @@ import extract_msg
 
 app = Flask(__name__)
 CORS(app)
+
+# Allow large images while keeping a sane cap to avoid DoS warnings.
+Image.MAX_IMAGE_PIXELS = 200_000_000
+warnings.filterwarnings(
+    "ignore",
+    category=Image.DecompressionBombWarning,
+)
 
 # ======================================================
 # Configuration
@@ -319,6 +327,7 @@ def scan():
     recursive = request.form.get("recursive", "true").lower() == "true"
     log_path = request.form.get("log_path")
     log_to_stdout = request.form.get("log_stdout", "true").lower() == "true"
+    debug_text = request.form.get("debug_text", "false").lower() == "true"
     allowed_exts = parse_file_types(request.form.get("file_types"))
     output_path = request.form.get("output_path")
     batch_size = int(request.form.get("batch_size", "500"))
@@ -385,6 +394,11 @@ def scan():
             else:
                 document = str(item)
                 text = extract_text_from_file_path(item)
+
+            if debug_text:
+                log(f"extracted_text_begin: {document}")
+                log(text)
+                log(f"extracted_text_end: {document}")
 
             # -------------------------
             # Regex hits
