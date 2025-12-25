@@ -50,7 +50,7 @@ app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500MB
 MAX_NESTED_DEPTH = 2
 
 # ======================================================
-# Lexicon loading (STRICT multi-word only)
+# Lexicon loading (STRICT two-word only)
 # ======================================================
 
 def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH):
@@ -69,8 +69,8 @@ def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH):
 
             value = value.strip()
 
-            # At least two words, single literal spaces, alnum only
-            if re.fullmatch(r"[A-Za-z0-9]+( [A-Za-z0-9]+)+", value):
+            # Exactly two words, single literal space, alnum only
+            if re.fullmatch(r"[A-Za-z0-9]+ [A-Za-z0-9]+", value):
                 keywords.append(value)
 
     return keywords
@@ -447,76 +447,50 @@ def scan():
                         "end": m.end()
                     })
 
-            # -------------------------
-            # Primary correlation mode
-            # -------------------------
-            if regex_hits and keyword_hits:
-                logged_file = False
-                for k in keyword_hits:
+            logged_file = False
+            for r in regex_hits:
+                if not logged_file:
+                    log(f"matched_file: {document}")
+                    logged_file = True
+                log(
+                    f"match: regex={r['name']} "
+                    f"document={document} "
+                    f"value={r['value']}"
+                )
+                record_match({
+                    "type": "regex",
+                    "fallback": False,
+                    "regex_name": r["name"],
+                    "document": document,
+                    "position": r["start"],
+                    "value": r["value"],
+                    "context": text[max(0, r["start"]-50):r["end"]+50]
+                })
+
+            for k in keyword_hits:
+                if not logged_file:
+                    log(f"matched_file: {document}")
+                    logged_file = True
+                nearest_name = None
+                nearest_dist = None
+                if regex_hits:
                     nearest_name, nearest_dist = nearest_regex_info(
                         k["start"], k["end"], regex_hits
                     )
-
-                    if not logged_file:
-                        log(f"matched_file: {document}")
-                        logged_file = True
-                    log(
-                        f"match: keyword={k['phrase']} "
-                        f"document={document} "
-                        f"nearest_regex={nearest_name} "
-                        f"distance={nearest_dist}"
-                    )
-                    record_match({
-                        "type": "keyword",
-                        "fallback": False,
-                        "phrase": k["phrase"],
-                        "document": document,
-                        "position": k["start"],
-                        "nearest_regex": nearest_name,
-                        "nearest_regex_distance": nearest_dist,
-                        "context": text[max(0, k["start"]-50):k["end"]+50]
-                    })
-
-            # -------------------------
-            # Fallback mode
-            # -------------------------
-            else:
-                logged_file = False
-                for r in regex_hits:
-                    if not logged_file:
-                        log(f"matched_file: {document}")
-                        logged_file = True
-                    log(
-                        f"match: regex={r['name']} "
-                        f"document={document} "
-                        f"value={r['value']}"
-                    )
-                    record_match({
-                        "type": "regex",
-                        "fallback": True,
-                        "regex_name": r["name"],
-                        "document": document,
-                        "position": r["start"],
-                        "value": r["value"],
-                        "context": text[max(0, r["start"]-50):r["end"]+50]
-                    })
-
-                for k in keyword_hits:
-                    if not logged_file:
-                        log(f"matched_file: {document}")
-                        logged_file = True
-                    log(
-                        f"match: keyword={k['phrase']} "
-                        f"document={document}"
-                    )
-                    record_match({
-                        "type": "keyword",
-                        "fallback": True,
-                        "phrase": k["phrase"],
-                        "document": document,
-                        "position": k["start"],
-                        "context": text[max(0, k["start"]-50):k["end"]+50]
-                    })
+                log(
+                    f"match: keyword={k['phrase']} "
+                    f"document={document}"
+                )
+                record_match({
+                    "type": "keyword",
+                    "fallback": False,
+                    "phrase": k["phrase"],
+                    "document": document,
+                    "position": k["start"],
+                    "nearest_regex": nearest_name,
+                    "nearest_regex_distance": nearest_dist,
+                    "context": text[max(0, k["start"]-50):k["end"]+50]
+                })
 
         except Exception as e:
             errors.append(f"{document}: {str(e)}")

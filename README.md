@@ -1,7 +1,7 @@
 # Document Scanner with OCR, Lexicon + Regex Correlation - Setup Guide
 
 ## Project Overview
-This is a complete document scanning system with OCR support and strict lexicon keyword detection correlated to regex patterns. It also processes email files (.eml, .msg), including message bodies and supported attachments.
+This is a complete document scanning system with OCR support and strict lexicon keyword detection. It also processes email files (.eml, .msg), including message bodies and supported attachments.
 
 **Components:**
 - `app.py` - Flask backend server
@@ -77,11 +77,11 @@ Server running on http://localhost:5000
    - Regex patterns are loaded from `regex_patterns.json`
    - Only strict multi-word keywords are used from the lexicon
 
-3. **Scan & Analyze** - Click to process documents
+3. **Scan & Analyze** - Click to process documents (regex and keyword matching run independently)
 
 4. **Review Results**
-   - Keyword hits are correlated to the nearest regex hit when both exist
-   - Fallback mode returns standalone regex hits and keywords
+- Keyword hits are always returned independently of regex hits
+- If regex hits exist, keyword results include the nearest regex (distance + name)
    - Results include document, position, and context snippet
 
 ---
@@ -95,8 +95,8 @@ Handles:
 - Text extraction from all document types
 - Email body and attachment extraction for .eml and .msg files
 - OCR processing for images using Tesseract
-- Strict lexicon keyword detection
-- Regex pattern matching and proximity correlation
+- Strict two-word lexicon keyword detection (single space only)
+- Regex pattern matching and optional proximity context
 - Results compilation and JSON response
 
 Key Functions:
@@ -120,7 +120,7 @@ Python packages:
 - `flask-cors` - Allow the local HTML UI to call the backend
  
 ### lexicon_latest.csv
-Lexicon CSV containing keywords. Only strict multi-word, alphanumeric phrases are used.
+Lexicon CSV containing keywords. Only strict two-word, alphanumeric phrases with a single space are used.
 
 ### regex_patterns.json
 JSON list of regex patterns with `name` and `pattern` used to find structured values.
