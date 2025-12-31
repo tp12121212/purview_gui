@@ -5,7 +5,7 @@
     "pattern": "(?i)(issuing|DOCUMENT No.|PASSPORT|birth|AUSTRALIA|Authority)[\\s\\S]{0,200}(?:P[A-E]|RA|N)[0-9]{7}\\b|(?:P[A-E]|RA|N)[0-9]{7}\\b[\\s\\S]{0,200}(PASSPORT|DOCUMENT|birth|AUSTRALIA|Authority|issuing)"
   },
 {
-    "name": "australia_vic_licence_back_2",
+    "name": "australia_vic_licence_back_3",
     "pattern": "(?i)CARRY LICENCE WHEN DRIVING"
   }
 
