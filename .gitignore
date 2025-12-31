@@ -5,8 +5,7 @@ __pycache__/
 keyword_matches.csv
 regex_matches.csv
 filee.json
-lexicon_latest.csv
-
+*matches.csv
 
 # C extensions
 *.so
