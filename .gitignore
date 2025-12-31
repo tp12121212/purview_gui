@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 keyword_matches.csv
 regex_matches.csv
+**/regex_matches.csv
 filee.json
 *matches.csv
 
