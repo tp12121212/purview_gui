@@ -1,219 +1,182 @@
 phrase,document,position,context,nearest_regex,nearest_regex_distance
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,116,"ul Mt Jukes RoadMT JUKES QLD 4740
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 749",swift,25
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,192,"VILLE NSW 2069
-Delivery featuresPh: 749540144
-The sender acknowledges that this article may be carriedby air and will b",australia_bank_account_number,4
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,274,ticle may be carriedby air and will be subject to aviation security and clearingprocedures; and the sender declares t,swift,39
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,324,aviation security and clearingprocedures; and the sender declares that the article doesnot contain any dangerous or,swift,0
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,390,"that the article doesnot contain any dangerous or prohibited goods, explosiveor incendiary devices.  A false declara",swift,42
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,420,"in any dangerous or prohibited goods, explosiveor incendiary devices.  A false declaration is a criminaloffence.Postag",swift,10
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,594,"ic weightTo:
-Sender:eBay0602Aviation Security and Dangerous Goods Declaration",swift,0
-goods declaration,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,604,"o:
-Sender:eBay0602Aviation Security and Dangerous Goods Declaration",swift,0
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,116,"ul Mt Jukes RoadMT JUKES QLD 4740
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 749",swift,25
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,192,"VILLE NSW 2069
-Delivery featuresPh: 749540144
-The sender acknowledges that this article may be carriedby air and will b",australia_bank_account_number,4
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,274,ticle may be carriedby air and will be subject to aviation security and clearingprocedures; and the sender declares t,swift,39
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,324,aviation security and clearingprocedures; and the sender declares that the article doesnot contain any dangerous or,swift,0
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,390,"that the article doesnot contain any dangerous or prohibited goods, explosiveor incendiary devices.  A false declara",swift,42
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,420,"in any dangerous or prohibited goods, explosiveor incendiary devices.  A false declaration is a criminaloffence.Postag",swift,10
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,594,"ic weightTo:
-Sender:eBay0602Aviation Security and Dangerous Goods Declaration",swift,0
-goods declaration,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,604,"o:
-Sender:eBay0602Aviation Security and Dangerous Goods Declaration",swift,0
-miscellaneous service,/Users/toddparker/Documents/ID_Files/test2/PassportCopy.pdf,1872,"JO QUIEN / bl ee epinigye hia / Ie)
+document no,/Volumes/ssd4g/dom/clientA/clientA/Davies_Emma/Permanent/KYC/Gavin/Passport.JPG,54,"RALIA
+Type / Type Code of issuing / Code de /Etat DOCUMENT No.
 
-ferfaer Bat/ MISCELLANEOUS SERVICE
+P eel. Smad PA1415977
 
-",,
-document no,/Users/toddparker/Documents/ID_Files/test2/YPAUSPassport1-ReducedSize.pdf,68,"ALIA
+Name / Nom
 
-Type / Type Code of issuing / Code de ""Etat DOCUMENT No,
+DAVIES
+GAVIN",australia_passport_number_latest,0
+gavin gregory,/Volumes/ssd4g/dom/clientA/clientA/Davies_Emma/Permanent/KYC/Gavin/Passport.JPG,110,"NT No.
 
-& AUIS, sete PA2903566
+P eel. Smad PA1415977
 
-YOGESHKUMAR MOHANBHAI
+Name / Nom
+
+DAVIES
+GAVIN GREGORY
+
+Nationality / Nationaaté
+
+AUSTRALIAN
+
+Date of bi",australia_passport_number_latest,21
+north dandenong,/Volumes/ssd4g/dom/clientA/clientA/Davies_Emma/Permanent/KYC/Gavin/Passport.JPG,259,"
+
+Sex / Sexe
+
+Piace of birth / Lieu de naissance
+
+NORTH DANDENONG
+
+| Po . a “7 Date of issue / Date de Gervrance Ho",australia_passport_number_latest,170
+carry licence,/Volumes/ssd4g/dom/clientA/clientA/A&F Boxes Pty Ltd_good_to_go_fenale/Permanent/KYC/Fiona Temby/Driver license/6E051510-4B37-479D-A7E0-1F53B4DD6258.jpeg,13,"CONDITIONS - CARRY LICENCE WHEN DRIVING
+
+PLACARD 06223622514
+
+tA YAIAXS 3OMI",australia_vic_licence_back,0
+affix change,/Volumes/ssd4g/dom/clientA/clientA/A&F Boxes Pty Ltd_good_to_go_fenale/Permanent/KYC/Fiona Temby/Driver license/6E051510-4B37-479D-A7E0-1F53B4DD6258.jpeg,204,"171 of writing to PO Box 777 Carlton Sth 3053 _—
+
+AFFIX CHANGE OF ADDRESS LABEL HERE
+AT LAW POSSESSION OF A CURR",australia_vic_licence_back,165
+address label,/Volumes/ssd4g/dom/clientA/clientA/A&F Boxes Pty Ltd_good_to_go_fenale/Permanent/KYC/Fiona Temby/Driver license/6E051510-4B37-479D-A7E0-1F53B4DD6258.jpeg,220,"o PO Box 777 Carlton Sth 3053 _—
+
+AFFIX CHANGE OF ADDRESS LABEL HERE
+AT LAW POSSESSION OF A CURRENT DRIVER LICENC",australia_vic_licence_back,181
+current driver,/Volumes/ssd4g/dom/clientA/clientA/A&F Boxes Pty Ltd_good_to_go_fenale/Permanent/KYC/Fiona Temby/Driver license/6E051510-4B37-479D-A7E0-1F53B4DD6258.jpeg,262,"ANGE OF ADDRESS LABEL HERE
+AT LAW POSSESSION OF A CURRENT DRIVER LICENCE
+IS WHOLLY THE RESPONSIBILITY OF THE DRIVE",australia_vic_licence_back,223
+driver licence,/Volumes/ssd4g/dom/clientA/clientA/A&F Boxes Pty Ltd_good_to_go_fenale/Permanent/KYC/Fiona Temby/Driver license/6E051510-4B37-479D-A7E0-1F53B4DD6258.jpeg,270,"ADDRESS LABEL HERE
+AT LAW POSSESSION OF A CURRENT DRIVER LICENCE
+IS WHOLLY THE RESPONSIBILITY OF THE DRIVER
+
+aoe e",australia_vic_licence_back,231
+document no,/Volumes/ssd4g/dom/clientA/clientA/A&F Boxes Pty Ltd_good_to_go_fenale/Permanent/KYC/Arthur Karvelis/Arthur - Passport.jpg,50,"ee Eee
+
+OBSERVATIO
+
+AUSTRALIA
+_ PASSPORT sea Bais DOCUMENT No
+
+N4452355
+
+KARVELIS
+ARTHUR
+
+Natonaity / Naconaiea",australia_passport_number_latest,0
+document no,"/Volumes/ssd4g/dom/clientA/clientA/Balendra, Vernon V_goof_to_go_male/Permanent/KYC/Vernon/Balendra Passport.png",25,"AUSTRALIA.
+tn tira Ca Et DOCUMENT No.
+Se AUS Se N6797029
+
+PASSPORT
+
+BALENDRA
+VERNON VI",australia_passport_number_latest,0
+passport australia,/Volumes/ssd4g/dom/clientA/clientA/Connect In Corp - Cyprus - Jolanta - Andy_good_to_go/Levack Pty Ltd - Foreign Shareholding/Permanent/KYC/Jake - Passport.jpg,13,"» stlaie
+ii
+
+PASSPORT AUSTRALIA .e
+PB4385283
+
+MCCARTNEY
+
+Date of issue / Date
+
+16",australia_passport_number_latest,0
+conditions carry,/Volumes/ssd4g/dom/clientA/clientA/Connect In Corp - Cyprus - Jolanta - Andy_good_to_go/Levack Pty Ltd - Foreign Shareholding/Permanent/KYC/Jake - driver licence Back.jpg,47,"Secu
+‘ 'S WHOLLY THE RESPONSIBLITY OF THe bee
+
+CONDITIONS CARRY LICENCE WHEN DRIVING
+
+(11-89
+
+is
+
+09-12-2024 er,
+",australia_vic_licence_back,0
+carry licence,/Volumes/ssd4g/dom/clientA/clientA/Connect In Corp - Cyprus - Jolanta - Andy_good_to_go/Levack Pty Ltd - Foreign Shareholding/Permanent/KYC/Jake - driver licence Back.jpg,58,"S WHOLLY THE RESPONSIBLITY OF THe bee
+
+CONDITIONS CARRY LICENCE WHEN DRIVING
+
+(11-89
+
+is
+
+09-12-2024 er,
+
+VieRoad",australia_vic_licence_back,0
+affix change,/Volumes/ssd4g/dom/clientA/clientA/Connect In Corp - Cyprus - Jolanta - Andy_good_to_go/Levack Pty Ltd - Foreign Shareholding/Permanent/KYC/Jake - driver licence Back.jpg,259,"131171 or writing to PO Box 777 Carlton Sth 3053
+
+AFFIX CHANGE OF ‘Ss
+
+ADDRE: ERE
+AT LAW POSSESSION OF A CURRENT",australia_vic_licence_back,175
+document no,"/Volumes/ssd4g/dom/clientA/clientA/Donato, Sam_good_to_go/Permanent/KYC/Passport.JPG",132,"PASSPORT ne Type Code of issuing / Code de /'Etat DOCUMENT No.
+P Stale AUS eeteur PA6359639
+Name / Nom
+
+DONATO ",australia_passport_number_latest,0
+conditions carry,/Volumes/ssd4g/dom/clientA/clientA/Coyle_Norm/Norman Coyle/Permanent/ID/Melissa Licence Back.jpg,0,"CONDITIONS CARRY LICENCE WHEN DRIVING
+
+08-735
+
+HT AIG AO STAG RISK",australia_vic_licence_back,0
+carry licence,/Volumes/ssd4g/dom/clientA/clientA/Coyle_Norm/Norman Coyle/Permanent/ID/Melissa Licence Back.jpg,11,"CONDITIONS CARRY LICENCE WHEN DRIVING
+
+08-735
+
+HT AIG AO STAG RISKS SOME
+0",australia_vic_licence_back,0
+current driver,/Volumes/ssd4g/dom/clientA/clientA/Coyle_Norm/Norman Coyle/Permanent/ID/Melissa Licence Back.jpg,284," Box 777 Cariton Sth 3053
+
+AT LAW POSSESSION OF A CURRENT DRIVER LICENCE
+IS WHOLLY THE RESPONSIBILITY OF THE DRIVE",australia_vic_licence_back,247
+driver licence,/Volumes/ssd4g/dom/clientA/clientA/Coyle_Norm/Norman Coyle/Permanent/ID/Melissa Licence Back.jpg,292," Cariton Sth 3053
+
+AT LAW POSSESSION OF A CURRENT DRIVER LICENCE
+IS WHOLLY THE RESPONSIBILITY OF THE DRIVER
+
+",australia_vic_licence_back,255
+conditions carry,/Volumes/ssd4g/dom/clientA/clientA/Coyle_Norm/Permanent/Norm Coyle - Identity Documents/Melissa Licence Back.jpg,0,"CONDITIONS CARRY LICENCE WHEN DRIVING
+
+08-735
+
+HT AIG AO STAG RISK",australia_vic_licence_back,0
+carry licence,/Volumes/ssd4g/dom/clientA/clientA/Coyle_Norm/Permanent/Norm Coyle - Identity Documents/Melissa Licence Back.jpg,11,"CONDITIONS CARRY LICENCE WHEN DRIVING
+
+08-735
+
+HT AIG AO STAG RISKS SOME
+0",australia_vic_licence_back,0
+current driver,/Volumes/ssd4g/dom/clientA/clientA/Coyle_Norm/Permanent/Norm Coyle - Identity Documents/Melissa Licence Back.jpg,284," Box 777 Cariton Sth 3053
+
+AT LAW POSSESSION OF A CURRENT DRIVER LICENCE
+IS WHOLLY THE RESPONSIBILITY OF THE DRIVE",australia_vic_licence_back,247
+driver licence,/Volumes/ssd4g/dom/clientA/clientA/Coyle_Norm/Permanent/Norm Coyle - Identity Documents/Melissa Licence Back.jpg,292," Cariton Sth 3053
+
+AT LAW POSSESSION OF A CURRENT DRIVER LICENCE
+IS WHOLLY THE RESPONSIBILITY OF THE DRIVER
+
+",australia_vic_licence_back,255
+document no,/Volumes/ssd4g/dom/clientA/clientA/AHR Clients/AHR Accountings Clients/Mark Woodhouse/Permanent/KYC/Mark Woodhouse AUS Passport.jpg,150,"7
+16, “JUN 2027
+
+AUSTRALIA
+
+Holter pete Sgt tary
+
+DOCUMENT No.
+PA6957741
+
+Face et) Us oo
+
+STOKE ON “TRENT
+
+——
 
 ",australia_passport_number_latest,0
-other entry,/Users/toddparker/Documents/ID_Files/test2/MiteshPassport.pdf,26,"OBSERVATIONS
-
-© permit or other entry
-
-Fee ) ay
-sees ‘PASS443024AUS8606 1 09M2702102<22",australia_passport_number_latest,64
-document no,/Users/toddparker/Documents/ID_Files/test2/MiteshPassport.pdf,167,"TRALIA
-Type / Type Code of issuing / Code de Etat DOCUMENT No.
-Silo ALJ S rate PA5544302
-Name / Nom
-PATEL
-
-MITE",australia_passport_number_latest,0
-otherwise endorsed,/Users/toddparker/Documents/ID_Files/test2/Nickandstephpassports001.jpg,71,"TIONS
-
-This document is valid for all countries s otherwise endorsed
-
-AL P,
-PASSPORT See AUSTRALIA on DOCUMENT No. — """,australia_passport_number_latest,8
-document no,/Users/toddparker/Documents/ID_Files/test2/Nickandstephpassports001.jpg,123,"herwise endorsed
-
-AL P,
-PASSPORT See AUSTRALIA on DOCUMENT No. — ""ype Type Gov mung Co ea DOCUMENT No
-gritee oo",australia_passport_number_latest,0
-document no,/Users/toddparker/Documents/ID_Files/test2/Nickandstephpassports001.jpg,163,"TRALIA on DOCUMENT No. — ""ype Type Gov mung Co ea DOCUMENT No
-gritee oo N1338083 coe AUS lo N5886235
-Name f Nom",australia_passport_number_latest,0
-document no,/Users/toddparker/Documents/ID_Files/test2/Shampassport06022015.pdf,422,"on
-
-24 DEC 2024
-
-Authority / Autonite
-
-AUSTRALIA
-
-DOCUMENT No.
-PA1676022
-
-Place of birth / Lieu de naissance
-
-S",australia_passport_number_latest,0
-unless otherwise,/Users/toddparker/Documents/ID_Files/test2/Pravind_Moorthy_Passport-AUS-PA28176053.pdf,54,"RVATIONS
-
-This documentis valid for all countries
-unless otherwise endorsed (subject to the visa,
-permit or other en",australia_passport_number_latest,308
-otherwise endorsed,/Users/toddparker/Documents/ID_Files/test2/Pravind_Moorthy_Passport-AUS-PA28176053.pdf,61,"S
-
-This documentis valid for all countries
-unless otherwise endorsed (subject to the visa,
-permit or other entry requi",australia_passport_number_latest,299
-other entry,/Users/toddparker/Documents/ID_Files/test2/Pravind_Moorthy_Passport-AUS-PA28176053.pdf,112,"therwise endorsed (subject to the visa,
-permit or other entry requirements of each country)
-
-PA281760S0AUS83020",australia_passport_number_latest,255
-entry requirements,/Users/toddparker/Documents/ID_Files/test2/Pravind_Moorthy_Passport-AUS-PA28176053.pdf,118,"se endorsed (subject to the visa,
-permit or other entry requirements of each country)
-
-PA281760S0AUS8302065M2510217<16",australia_passport_number_latest,242
-document no,/Users/toddparker/Documents/ID_Files/test2/Pravind_Moorthy_Passport-AUS-PA28176053.pdf,437," / Autorité
-
-AUSTRALIA
-
-SS Es at
-
-a |
-
-AUSTRALIA
-
-DOCUMENT No.
-PA2817605
-
-Code of issuing / Code de état
-State ",australia_passport_number_latest,0
-document no,/Users/toddparker/Documents/ID_Files/test2/SueAusPassport.pdf,133,"A |
-
-Type / Type Code of issuing / Code de l’Etat Document No. '
-P State AUS émetteur R A 2 3 6 s 7 6 9 |
-
-Fami",,
-given names,/Users/toddparker/Documents/ID_Files/test2/SueAusPassport.pdf,221,"A 2 3 6 s 7 6 9 |
-
-Familyname / Nom ;
-BURT -PRICE
-Given names / Prénoms
-
-SUSAN LOUISE
-
-Nationality / Nationatit",,
-susan louise,/Users/toddparker/Documents/ID_Files/test2/SueAusPassport.pdf,244,"lyname / Nom ;
-BURT -PRICE
-Given names / Prénoms
-
-SUSAN LOUISE
-
-Nationality / Nationatité
-
-AUSTRALIAN
-
-Pate of b",,
-expiration holder,/Users/toddparker/Documents/ID_Files/test2/SueAusPassport.pdf,484," délivrance
-
-09 MAR 2023
-
-Date of expiry / Date d’expiration Holder's signature / Signature du titulaire
-
-2 09 MAR 20",,
-document no,/Users/toddparker/Documents/ID_Files/test2/Passport24August2017.jpg,16,"OBSERVA
-
-Ce Cat DOCUMENT No,
-=A PAB178822
-HELEN PATRICIA
-pierre
-AUSTRALIAN
-26",,
-helen patricia,/Users/toddparker/Documents/ID_Files/test2/Passport24August2017.jpg,42,"OBSERVA
-
-Ce Cat DOCUMENT No,
-=A PAB178822
-HELEN PATRICIA
-pierre
-AUSTRALIAN
-26 NOV 1961 ‘at
-F MELBOURNE
-
-24",,
-passport australia,/Users/toddparker/Documents/ID_Files/test2/0101D82C63484985D8D4F5ED4F449DE5922EFFA681FBAD13449500-Attachment-MelaniePassport.jpg,0,"PASSPORT AUSTRALIA
-
-mart DOCUMENT No,
-AUS PB3168279
-
-MELANIE JANE
-
-2",australia_passport_number_latest,0
-document no,/Users/toddparker/Documents/ID_Files/test2/0101D82C63484985D8D4F5ED4F449DE5922EFFA681FBAD13449500-Attachment-MelaniePassport.jpg,25,"PASSPORT AUSTRALIA
-
-mart DOCUMENT No,
-AUS PB3168279
-
-MELANIE JANE
-
-27 “AUG 1972
-
-PORTS",australia_passport_number_latest,0
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-4.pdf,111," Boree AvenueFOREST HILL NSW 2651
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 041",,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-4.pdf,184,"OSEVILLE NSW 2069
-Delivery featuresPh: 0415826979
-Aviation Security and Dangerous Goods DeclarationThe sender acknowl",,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-4.pdf,206,"very featuresPh: 0415826979
-Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-4.pdf,237,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may becarried by air and will b,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-4.pdf,340,y air and will be subject to aviation securityand clearing procedures; and the sender declares thatthe article does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-4.pdf,369,aviation securityand clearing procedures; and the sender declares thatthe article does not contain any dangerous or,,
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-4.pdf,465,"in any dangerous orprohibited goods, explosive or incendiary devices.  Afalse declaration is a criminal offence.Postag",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-4.pdf,510,"e or incendiary devices.  Afalse declaration is a criminal offence.Postage Paid
-Ref: 7535483259Up to 5kgPackagingSma",,
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,116,"ul Mt Jukes RoadMT JUKES QLD 4740
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 749",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,192,"VILLE NSW 2069
-Delivery featuresPh: 749540144
-The sender acknowledges that this article may be carriedby air and will b",,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,274,ticle may be carriedby air and will be subject to aviation security and clearingprocedures; and the sender declares t,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,324,aviation security and clearingprocedures; and the sender declares that the article doesnot contain any dangerous or,,
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,390,"that the article doesnot contain any dangerous or prohibited goods, explosiveor incendiary devices.  A false declara",,
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,420,"in any dangerous or prohibited goods, explosiveor incendiary devices.  A false declaration is a criminaloffence.Postag",,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,594,"ic weightTo:
-Sender:eBay0602Aviation Security and Dangerous Goods Declaration",,
-goods declaration,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-2.pdf,604,"o:
-Sender:eBay0602Aviation Security and Dangerous Goods Declaration",,
-james johnston,/Users/toddparker/Documents/ID_Files/test2/0101D8A61D55C818562DE3EB474C92F06FAEC7B1F169AD9DD7C0518000CE5F0A-Attachment-AustralianPassport.jpg,66,"SSPORT typo! Vie
+james johnston,/Volumes/ssd4g/dom/clientA/clientA/AHR Clients/Brown_Alan/Permanent/KYC/Australian Passport.jpg,66,"SSPORT typo! Vie
 
 4
 
@@ -226,7 +189,7 @@ DOCUMENT No.
 N7587227
 
 Nationality / Nationait",australia_passport_number_latest,0
-document no,/Users/toddparker/Documents/ID_Files/test2/0101D8A61D55C818562DE3EB474C92F06FAEC7B1F169AD9DD7C0518000CE5F0A-Attachment-AustralianPassport.jpg,84,"4
+document no,/Volumes/ssd4g/dom/clientA/clientA/AHR Clients/Brown_Alan/Permanent/KYC/Australian Passport.jpg,84,"4
 
 Name / Nom
 
@@ -241,187 +204,25 @@ Nationality / Nationaite
 AUSTRALIAN
 
 ",australia_passport_number_latest,0
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-3.pdf,107,"40 Contour RoadROLEYSTONE WA 6111
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 047",,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-3.pdf,180,"OSEVILLE NSW 2069
-Delivery featuresPh: 0478966205
-Aviation Security and Dangerous Goods DeclarationThe sender acknowl",,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-3.pdf,202,"very featuresPh: 0478966205
-Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-3.pdf,233,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may becarried by air and will b,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-3.pdf,336,y air and will be subject to aviation securityand clearing procedures; and the sender declares thatthe article does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-3.pdf,365,aviation securityand clearing procedures; and the sender declares thatthe article does not contain any dangerous or,,
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-3.pdf,461,"in any dangerous orprohibited goods, explosive or incendiary devices.  Afalse declaration is a criminal offence.Postag",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-3.pdf,506,"e or incendiary devices.  Afalse declaration is a criminal offence.Postage Paid
-Ref: 7536138099Up to 5kgPackagingX-S",,
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-1.pdf,105,"erU 4 7 Short StGUNNEDAH NSW 2380
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 040",,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-1.pdf,178,"OSEVILLE NSW 2069
-Delivery featuresPh: 0408696159
-Aviation Security and Dangerous Goods DeclarationThe sender acknowl",,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-1.pdf,200,"very featuresPh: 0408696159
-Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-1.pdf,231,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may becarried by air and will b,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-1.pdf,334,y air and will be subject to aviation securityand clearing procedures; and the sender declares thatthe article does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-1.pdf,363,aviation securityand clearing procedures; and the sender declares thatthe article does not contain any dangerous or,,
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-1.pdf,459,"in any dangerous orprohibited goods, explosive or incendiary devices.  Afalse declaration is a criminal offence.Postag",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250602-1.pdf,504,"e or incendiary devices.  Afalse declaration is a criminal offence.Postage Paid
-Ref: 7536056629500gPackagingOWNPhysi",,
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-4.pdf,111,"5 Lime StCABRAMATTA WEST NSW 2166
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 040",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-4.pdf,188,"ILLE NSW 2069
-Delivery featuresPh: 0403303386
-The sender acknowledges that this article may be carriedby air and will b",,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-4.pdf,270,ticle may be carriedby air and will be subject to aviation security and clearingprocedures; and the sender declares t,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-4.pdf,320,aviation security and clearingprocedures; and the sender declares that the article doesnot contain any dangerous or,,
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-4.pdf,386,"that the article doesnot contain any dangerous or prohibited goods, explosiveor incendiary devices.  A false declara",,
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-4.pdf,416,"in any dangerous or prohibited goods, explosiveor incendiary devices.  A false declaration is a criminaloffence.Postag",,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-4.pdf,590,"ic weightTo:
-Sender:eBay0531Aviation Security and Dangerous Goods Declaration",,
-goods declaration,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-4.pdf,600,"o:
-Sender:eBay0531Aviation Security and Dangerous Goods Declaration",,
-andrew james,/Users/toddparker/Documents/ID_Files/test2/01DA3FE9EAD2656D6A5952974488BC45108CD8F0273E0073ADBCF5004AB369E0-Attachment-Passport2.pdf,70,"M3205138<BH190290P<<c<22
+orange grove,/Volumes/ssd4g/dom/clientA/clientA/AHR Clients/Neil Stanford/Permanent/KYC/Certified.jpg,116,"CApITes
+NEIL A STANFORD 18 OCT
+388 KELVIN RD 2021
+ORANGE GROVE WA 6109
 
-P “AUS PB5791387
-FIDGE
+CRN 605 521 851H
 
-ANDREW JAMES
+| certify this js a tr",australia_passport_number_latest,833
+australian government,/Volumes/ssd4g/dom/clientA/clientA/AHR Clients/Neil Stanford/Permanent/KYC/Certified.jpg,293,"tralia.gov.au/healthcarecard 20 le
 
-AUSTRALIAN
+issued by the Australian Government agency, Services Australia
+on behalf of the Depar",australia_passport_number_latest,647
+government agency,/Volumes/ssd4g/dom/clientA/clientA/AHR Clients/Neil Stanford/Permanent/KYC/Certified.jpg,304,"au/healthcarecard 20 le
 
-03 JUL 1979 (
+issued by the Australian Government agency, Services Australia
+on behalf of the Department o",australia_passport_number_latest,640
+services australia,/Volumes/ssd4g/dom/clientA/clientA/AHR Clients/Neil Stanford/Permanent/KYC/Certified.jpg,323,"0 le
 
-M MURRAY BRIDGE
-13 MA",australia_passport_number_latest,0
-murray bridge,/Users/toddparker/Documents/ID_Files/test2/01DA3FE9EAD2656D6A5952974488BC45108CD8F0273E0073ADBCF5004AB369E0-Attachment-Passport2.pdf,113,"FIDGE
+issued by the Australian Government agency, Services Australia
+on behalf of the Department of Social Services
 
-ANDREW JAMES
-
-AUSTRALIAN
-
-03 JUL 1979 (
-
-M MURRAY BRIDGE
-13 MAY 2022 _—
-
-13 MAY 2032 ofl
-
-AUSTRALIA
-
-P<AUS",australia_passport_number_latest,0
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-4.pdf,117,"ys Gully RoadHURSTBRIDGE VIC 3099
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 442",,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-4.pdf,192,"EVILLE NSW 2069
-Delivery featuresPh: 442025555555
-Aviation Security and Dangerous Goods DeclarationThe sender acknowl",,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-4.pdf,214,"ry featuresPh: 442025555555
-Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-4.pdf,245,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may becarried by air and will b,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-4.pdf,348,y air and will be subject to aviation securityand clearing procedures; and the sender declares thatthe article does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-4.pdf,377,aviation securityand clearing procedures; and the sender declares thatthe article does not contain any dangerous or,,
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-4.pdf,473,"in any dangerous orprohibited goods, explosive or incendiary devices.  Afalse declaration is a criminal offence.Postag",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-4.pdf,518,"e or incendiary devices.  Afalse declaration is a criminal offence.Postage Paid
-Ref: 7532613829Up to 5kgPackagingX-S",,
-victoria street,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-5.pdf,109,"188 Torrens RdRENOWN PARK SA 5008
-N/ATodd Parker7 Victoria Street Unit 1ROSEVILLE NSW 2069
-Delivery featuresPh: 048",,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-5.pdf,182,"OSEVILLE NSW 2069
-Delivery featuresPh: 0488011580
-Aviation Security and Dangerous Goods DeclarationThe sender acknowl",,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-5.pdf,204,"very featuresPh: 0488011580
-Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-5.pdf,235,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may becarried by air and will b,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-5.pdf,338,y air and will be subject to aviation securityand clearing procedures; and the sender declares thatthe article does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-5.pdf,367,aviation securityand clearing procedures; and the sender declares thatthe article does not contain any dangerous or,,
-incendiary devices,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-5.pdf,463,"in any dangerous orprohibited goods, explosive or incendiary devices.  Afalse declaration is a criminal offence.Postag",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-5.pdf,508,"e or incendiary devices.  Afalse declaration is a criminal offence.Postage Paid
-Ref: 7532301049500gPackagingOWNPhysi",,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-3.pdf,279,"eetUnit 1Roseville, NSW 2069Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-3.pdf,310,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may be carried by air and will ,,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-3.pdf,392,ticle may be carried by air and will be subjectto aviation security and clearing procedures; and the sender declares ,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-3.pdf,414,y air and will be subjectto aviation security and clearing procedures; and the sender declares that thearticle does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-3.pdf,443,viation security and clearing procedures; and the sender declares that thearticle does not contain any dangerous or,,
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-3.pdf,509,"that thearticle does not contain any dangerous or prohibited goods, explosive orincendiary devices. A false declarat",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-3.pdf,584,ve orincendiary devices. A false declaration is a criminal offence.,,
-original sighted,/Users/toddparker/Documents/ID_Files/test2/Passport-Adam2.png,52,"Certify that this document is a
-
-TRUE COPY of the original sighted by me on
-
-ZN AA
-
-rley Gardens
-shopping Centre
-s R",australia_passport_number_latest,305
-shopping centre,/Users/toddparker/Documents/ID_Files/test2/Passport-Adam2.png,99,"he original sighted by me on
-
-ZN AA
-
-rley Gardens
-shopping Centre
-s Roads
-
-OBSERVATIONS
-
-This document is valid for",australia_passport_number_latest,259
-countries unless,/Users/toddparker/Documents/ID_Files/test2/Passport-Adam2.png,169,"ads
-
-OBSERVATIONS
-
-This document is valid for all countries unless otherwise endorsed
-
-o rs Ce document est valable ",australia_passport_number_latest,188
-unless otherwise,/Users/toddparker/Documents/ID_Files/test2/Passport-Adam2.png,179,"VATIONS
-
-This document is valid for all countries unless otherwise endorsed
-
-o rs Ce document est valable pour tous ",australia_passport_number_latest,178
-otherwise endorsed,/Users/toddparker/Documents/ID_Files/test2/Passport-Adam2.png,186,"
-
-This document is valid for all countries unless otherwise endorsed
-
-o rs Ce document est valable pour tous pays sauf",australia_passport_number_latest,169
-other entry,/Users/toddparker/Documents/ID_Files/test2/Passport-Adam2.png,563,"a, de permis, ou
-
-{subject to the visa, permit or other entry requirements of each country}.
-*.
-
-AUSTRALIA we 2",australia_passport_number_latest,123
-entry requirements,/Users/toddparker/Documents/ID_Files/test2/Passport-Adam2.png,569,"permis, ou
-
-{subject to the visa, permit or other entry requirements of each country}.
-*.
-
-AUSTRALIA we 2)
-Lom Core of",australia_passport_number_latest,129
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-1.pdf,284,"eetUnit 1Roseville, NSW 2069Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-1.pdf,315,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may be carried by air and will ,,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-1.pdf,397,ticle may be carried by air and will be subjectto aviation security and clearing procedures; and the sender declares ,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-1.pdf,419,y air and will be subjectto aviation security and clearing procedures; and the sender declares that thearticle does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-1.pdf,448,viation security and clearing procedures; and the sender declares that thearticle does not contain any dangerous or,,
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-1.pdf,514,"that thearticle does not contain any dangerous or prohibited goods, explosive orincendiary devices. A false declarat",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-1.pdf,589,ve orincendiary devices. A false declaration is a criminal offence.,,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-2a.pdf,289,"eetUnit 1Roseville, NSW 2069Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-2a.pdf,320,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may be carried by air and will ,,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-2a.pdf,402,ticle may be carried by air and will be subjectto aviation security and clearing procedures; and the sender declares ,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-2a.pdf,424,y air and will be subjectto aviation security and clearing procedures; and the sender declares that thearticle does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-2a.pdf,453,viation security and clearing procedures; and the sender declares that thearticle does not contain any dangerous or,,
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-2a.pdf,519,"that thearticle does not contain any dangerous or prohibited goods, explosive orincendiary devices. A false declarat",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250601-2a.pdf,594,ve orincendiary devices. A false declaration is a criminal offence.,,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-2.pdf,276,"eetUnit 1Roseville, NSW 2069Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-2.pdf,307,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may be carried by air and will ,,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-2.pdf,389,ticle may be carried by air and will be subjectto aviation security and clearing procedures; and the sender declares ,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-2.pdf,411,y air and will be subjectto aviation security and clearing procedures; and the sender declares that thearticle does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-2.pdf,440,viation security and clearing procedures; and the sender declares that thearticle does not contain any dangerous or,,
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-2.pdf,506,"that thearticle does not contain any dangerous or prohibited goods, explosive orincendiary devices. A false declarat",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-2.pdf,581,ve orincendiary devices. A false declaration is a criminal offence.,,
-dangerous goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-3.pdf,284,"eetUnit 1Roseville, NSW 2069Aviation Security and Dangerous Goods DeclarationThe sender acknowledges that this arti",,
-sender acknowledges,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-3.pdf,315,ation Security and Dangerous Goods DeclarationThe sender acknowledges that this article may be carried by air and will ,,
-aviation security,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-3.pdf,397,ticle may be carried by air and will be subjectto aviation security and clearing procedures; and the sender declares ,,
-clearing procedures,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-3.pdf,419,y air and will be subjectto aviation security and clearing procedures; and the sender declares that thearticle does not,,
-sender declares,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-3.pdf,448,viation security and clearing procedures; and the sender declares that thearticle does not contain any dangerous or,,
-prohibited goods,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-3.pdf,514,"that thearticle does not contain any dangerous or prohibited goods, explosive orincendiary devices. A false declarat",,
-criminal offence,/Users/toddparker/Documents/ID_Files/test2/eBay-shipping-20250603-3.pdf,589,ve orincendiary devices. A false declaration is a criminal offence.,,
+C",australia_passport_number_latest,620

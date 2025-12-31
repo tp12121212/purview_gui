@@ -417,11 +417,7 @@ def scan():
     keywords = load_keywords(lexicon_path)
     keyword_set = set(keywords)
     regex_patterns = load_regex_patterns(regex_path)
-    if debug_text:
-        log_debug_text("keywords_begin")
-        for kw in keywords:
-            log_debug_text(kw)
-        log_debug_text("keywords_end")
+    # Keep debug_text focused on extracted document text only.
 
     output_file = None
     if output_path:
@@ -482,24 +478,25 @@ def scan():
                     })
 
             # -------------------------
-            # Keyword hits (strict)
+            # Keyword hits (strict), only after a regex match exists
             # -------------------------
             keyword_hits = []
-            token_iter = list(re.finditer(r"[A-Za-z0-9]+", text))
-            for idx in range(len(token_iter) - 1):
-                first = token_iter[idx]
-                second = token_iter[idx + 1]
-                between = text[first.end():second.start()]
-                if between != " ":
-                    continue
-                w1 = first.group(0).lower()
-                w2 = second.group(0).lower()
-                if w1 in keyword_set and w2 in keyword_set:
-                    keyword_hits.append({
-                        "phrase": f"{w1} {w2}",
-                        "start": first.start(),
-                        "end": second.end()
-                    })
+            if regex_hits:
+                token_iter = list(re.finditer(r"[A-Za-z0-9]+", text))
+                for idx in range(len(token_iter) - 1):
+                    first = token_iter[idx]
+                    second = token_iter[idx + 1]
+                    between = text[first.end():second.start()]
+                    if between != " ":
+                        continue
+                    w1 = first.group(0).lower()
+                    w2 = second.group(0).lower()
+                    if w1 in keyword_set and w2 in keyword_set:
+                        keyword_hits.append({
+                            "phrase": f"{w1} {w2}",
+                            "start": first.start(),
+                            "end": second.end()
+                        })
 
             logged_file = False
             for r in regex_hits:
