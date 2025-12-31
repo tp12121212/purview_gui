@@ -39,6 +39,7 @@ warnings.filterwarnings(
 
 DEFAULT_LEXICON_PATH = "lexicon_latest.csv"
 REGEX_PATTERNS_PATH = "regex_patterns.json"
+PROGRESS_DIR = Path(tempfile.gettempdir()) / "purview_scan_progress"
 
 SUPPORTED_EXTENSIONS = {
     ".pdf", ".docx", ".xlsx",
@@ -323,6 +324,7 @@ def nearest_regex_info(start, end, regex_hits):
 def scan():
     lexicon_path = request.form.get("lexicon_path", DEFAULT_LEXICON_PATH)
     regex_path = request.form.get("regex_path", REGEX_PATTERNS_PATH)
+    scan_id = request.form.get("scan_id")
     scan_path = request.form.get("path")
     recursive = request.form.get("recursive", "true").lower() == "true"
     log_path = request.form.get("log_path")
@@ -335,6 +337,32 @@ def scan():
     output_path = request.form.get("output_path")
     batch_size = int(request.form.get("batch_size", "500"))
     return_limit = int(request.form.get("return_limit", "0"))
+
+    if not lexicon_path:
+        lexicon_path = DEFAULT_LEXICON_PATH
+    if not regex_path:
+        regex_path = REGEX_PATTERNS_PATH
+
+    progress_path = None
+    if scan_id and re.fullmatch(r"[A-Za-z0-9_-]{6,64}", scan_id):
+        PROGRESS_DIR.mkdir(parents=True, exist_ok=True)
+        progress_path = PROGRESS_DIR / f"{scan_id}.json"
+
+    def write_progress(payload):
+        if not progress_path:
+            return
+        payload["scan_id"] = scan_id
+        with open(progress_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+
+    if progress_path:
+        write_progress({
+            "status": "starting",
+            "current": 0,
+            "total": 0,
+            "percent": 0,
+            "current_document": "Listing files..."
+        })
 
     log_file = None
     if log_path:
@@ -352,6 +380,61 @@ def scan():
                 "error": "debug_text_path must be different from output_path"
             }), 400
         debug_file = open(debug_text_path, "a", encoding="utf-8")
+
+    temp_files = []
+
+    def cleanup_temp_files():
+        for path in temp_files:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+    def save_uploaded_file(upload, suffix):
+        if not upload or not upload.filename:
+            return None
+        ext = Path(upload.filename).suffix.lower()
+        final_suffix = ext if ext else suffix
+        with tempfile.NamedTemporaryFile(delete=False, suffix=final_suffix) as tmp:
+            upload.save(tmp.name)
+            temp_files.append(tmp.name)
+            return tmp.name
+
+    uploaded_lexicon = request.files.get("lexicon_file")
+    uploaded_regex = request.files.get("regex_file")
+    lexicon_upload_path = save_uploaded_file(uploaded_lexicon, ".csv")
+    regex_upload_path = save_uploaded_file(uploaded_regex, ".json")
+    if lexicon_upload_path:
+        lexicon_path = lexicon_upload_path
+    if regex_upload_path:
+        regex_path = regex_upload_path
+
+    scan_items = []
+    listing_count = 0
+    for scan_item in iter_scan_items(
+        request.files.getlist("files"),
+        scan_path,
+        recursive,
+        allowed_exts,
+    ):
+        scan_items.append(scan_item)
+        listing_count += 1
+        if scan_path and listing_count % 50 == 0:
+            write_progress({
+                "status": "listing",
+                "current": listing_count,
+                "total": 0,
+                "percent": 0,
+                "current_document": f"Found {listing_count} files..."
+            })
+    total_documents = listing_count
+    write_progress({
+        "status": "running" if total_documents > 0 else "complete",
+        "current": 0,
+        "total": total_documents,
+        "percent": 0 if total_documents > 0 else 100,
+        "current_document": "" if total_documents > 0 else "No files found"
+    })
 
     regex_csv_file = None
     regex_csv_writer = None
@@ -401,6 +484,11 @@ def scan():
             debug_file.flush()
 
     if not os.path.isfile(regex_path):
+        write_progress({
+            "status": "error",
+            "error": f"regex_path not found: {regex_path}"
+        })
+        cleanup_temp_files()
         if log_file:
             log_file.close()
         if debug_file:
@@ -444,19 +532,26 @@ def scan():
         if not output_file or (return_limit > 0 and len(results) < return_limit):
             results.append(item)
 
-    for source, item in iter_scan_items(
-        request.files.getlist("files"),
-        scan_path,
-        recursive,
-        allowed_exts,
-    ):
+    for source, item in scan_items:
         documents_scanned += 1
         try:
             if source == "upload":
                 document = item.filename
-                text = extract_text_from_upload(item)
             else:
                 document = str(item)
+
+            if total_documents > 0:
+                write_progress({
+                    "status": "running",
+                    "current": documents_scanned,
+                    "total": total_documents,
+                    "percent": int((documents_scanned / total_documents) * 100),
+                    "current_document": document
+                })
+
+            if source == "upload":
+                text = extract_text_from_upload(item)
+            else:
                 text = extract_text_from_file_path(item)
 
             if debug_text:
@@ -581,6 +676,14 @@ def scan():
         regex_csv_file.close()
     if keyword_csv_file:
         keyword_csv_file.close()
+    cleanup_temp_files()
+    write_progress({
+        "status": "complete",
+        "current": documents_scanned,
+        "total": total_documents,
+        "percent": 100,
+        "current_document": ""
+    })
 
     return jsonify({
         "success": True,
@@ -597,6 +700,35 @@ def health():
         "status": "ok",
         "ocr_available": True
     })
+
+@app.route("/regex-files", methods=["GET"])
+def regex_files():
+    root = Path(".").resolve()
+    files = []
+    try:
+        for path in root.rglob("regex_patterns*.json"):
+            files.append(str(path.relative_to(root)))
+            if len(files) >= 200:
+                break
+    except OSError:
+        pass
+    files.sort()
+    return jsonify({
+        "success": True,
+        "files": files
+    })
+
+@app.route("/progress/<scan_id>", methods=["GET"])
+def progress(scan_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{6,64}", scan_id):
+        return jsonify({"success": False, "error": "invalid scan_id"}), 400
+    progress_path = PROGRESS_DIR / f"{scan_id}.json"
+    if not progress_path.is_file():
+        return jsonify({"success": False, "error": "scan_id not found"}), 404
+    with open(progress_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    data["success"] = True
+    return jsonify(data)
 
 
 if __name__ == "__main__":

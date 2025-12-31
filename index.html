@@ -78,6 +78,13 @@
             margin-bottom: 20px;
         }
 
+        .helper-text {
+            color: var(--color-text-secondary);
+            font-size: 12px;
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
         label {
             display: block;
             margin-bottom: 8px;
@@ -127,6 +134,23 @@
             resize: vertical;
             min-height: 120px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(33, 128, 141, 0.1);
         }
 
         textarea:focus {
@@ -301,6 +325,38 @@
             font-size: 14px;
         }
 
+        .progress-wrapper {
+            width: 100%;
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: var(--color-primary);
+            transition: width 0.2s ease;
+        }
+
+        .progress-bar.indeterminate {
+            width: 30%;
+            animation: indeterminate 1.2s infinite;
+        }
+
+        .progress-text {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        @keyframes indeterminate {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(300%); }
+        }
+
         .error-message {
             background-color: #ffebee;
             border: 1px solid #ffcdd2;
@@ -381,14 +437,15 @@
                 
                 <div class="form-group">
                     <label>Select File(s)</label>
-                    <p class="info-box">Supported: PDF, Word (.docx), Excel (.xlsx), JPEG, PNG, TIFF, and image-based PDFs</p>
+                    <p class="info-box">Supported: PDF, Word (.docx), Excel (.xlsx), JPEG, PNG, TIFF, and email files (.eml, .msg)</p>
                     <div class="file-input-wrapper">
-                        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.tiff,.tif">
+                        <input type="file" id="fileInput" multiple webkitdirectory directory accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.tiff,.tif,.eml,.msg">
                         <label for="fileInput" class="file-input-label">
-                            <span>📁 Click to browse or drag files here</span>
+                            <span>📁 Click to browse or drag files/folders here</span>
                         </label>
                     </div>
                     <div id="fileList" style="margin-top: 10px; font-size: 13px; color: var(--color-text-secondary);"></div>
+                    <div class="helper-text">Folder uploads use the browser file picker; drag-and-drop folders may not work in all browsers.</div>
                 </div>
             </div>
 
@@ -397,41 +454,115 @@
                 <h2>2. Configure Detection</h2>
 
                 <div class="form-group">
-                    <label>Detection Mode</label>
+                    <label>Regex Patterns (JSON)</label>
+                    <p class="info-box">Default: regex_patterns.json</p>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="regexFile" accept=".json,application/json">
+                        <label for="regexFile" class="file-input-label">
+                            <span>🧩 Optional: upload regex patterns file</span>
+                        </label>
+                    </div>
+                    <div id="regexFileName" style="margin-top: 8px; font-size: 13px; color: var(--color-text-secondary);"></div>
+                    <label for="regexPath" style="margin-top: 12px;">Regex File Path (server)</label>
+                    <input type="text" id="regexPath" value="regex_patterns.json" list="regexPathOptions">
+                    <datalist id="regexPathOptions"></datalist>
+                    <div class="helper-text">Use upload for a local file or set a server path if the JSON is already on disk.</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Lexicon Keywords (CSV)</label>
+                    <p class="info-box">Default: lexicon_latest.csv</p>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="lexiconFile" accept=".csv,text/csv">
+                        <label for="lexiconFile" class="file-input-label">
+                            <span>🗂️ Optional: upload lexicon CSV</span>
+                        </label>
+                    </div>
+                    <div id="lexiconFileName" style="margin-top: 8px; font-size: 13px; color: var(--color-text-secondary);"></div>
+                    <label for="lexiconPath" style="margin-top: 12px;">Lexicon File Path (server)</label>
+                    <input type="text" id="lexiconPath" value="lexicon_latest.csv">
+                    <div class="helper-text">Lexicon is a CSV of keywords used for strict adjacent two-word matching.</div>
+                </div>
+
+                <div class="form-group">
+                    <p class="info-box">Keyword detection uses the lexicon CSV (strict adjacent two-word phrases). Regex matching runs independently.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>3. Advanced Options</h2>
+
+                <div class="form-group">
+                    <label for="scanPath">Local Path to Scan (server)</label>
+                    <input type="text" id="scanPath" placeholder="/path/to/folder">
+                    <div class="helper-text">Scans files on the server machine instead of uploading.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="fileTypes">Limit File Types (comma-separated)</label>
+                    <input type="text" id="fileTypes" placeholder="pdf,docx,xlsx,jpg,png,tif,tiff,eml,msg">
+                    <div class="helper-text">Restricts scanning to specific extensions.</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Scan Options</label>
                     <div class="checkbox-group">
                         <div class="checkbox-item">
-                            <input type="radio" id="modePhrase" name="detectionMode" value="phrase" checked>
-                            <label for="modePhrase" style="margin-bottom: 0;">Phrase Detection (adjacent keywords)</label>
+                            <input type="checkbox" id="recursive" checked>
+                            <label for="recursive" style="margin-bottom: 0;">Recursive Scan</label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="radio" id="modeKeyword" name="detectionMode" value="keyword">
-                            <label for="modeKeyword" style="margin-bottom: 0;">Simple Keywords</label>
+                            <input type="checkbox" id="logStdout" checked>
+                            <label for="logStdout" style="margin-bottom: 0;">Log to Stdout</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="debugText">
+                            <label for="debugText" style="margin-bottom: 0;">Log Extracted Text</label>
                         </div>
                     </div>
+                    <div class="helper-text">Recursive scans subfolders. Log to stdout prints progress in the server console. Log extracted text writes raw text to a file.</div>
                 </div>
 
                 <div class="form-group">
-                    <label>Keywords to Find (one per line)</label>
-                    <textarea id="keywordsList" placeholder="Enter keywords&#10;Example:&#10;invoice number&#10;order date&#10;total amount&#10;customer name"></textarea>
+                    <label for="logPath">Log File Path (server)</label>
+                    <input type="text" id="logPath" placeholder="scan.log">
+                    <div class="helper-text">Append scan logs to this file on the server.</div>
                 </div>
 
                 <div class="form-group">
-                    <label>Reject Keywords (one per line)</label>
-                    <textarea id="rejectList" placeholder="Words/phrases to exclude from results&#10;Example:&#10;draft&#10;sample&#10;template"></textarea>
+                    <label for="debugTextPath">Extracted Text Output Path</label>
+                    <input type="text" id="debugTextPath" value="extracted_text.log">
+                    <div class="helper-text">Used when “Log Extracted Text” is enabled.</div>
                 </div>
 
                 <div class="form-group">
-                    <label>Options</label>
-                    <div class="checkbox-group">
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="caseSensitive">
-                            <label for="caseSensitive" style="margin-bottom: 0;">Case Sensitive</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="wholeWord" checked>
-                            <label for="wholeWord" style="margin-bottom: 0;">Whole Word Match</label>
-                        </div>
-                    </div>
+                    <label for="regexOutputPath">Regex Matches CSV Path</label>
+                    <input type="text" id="regexOutputPath" value="regex_matches.csv">
+                    <div class="helper-text">Writes regex match rows to a CSV file.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="keywordOutputPath">Keyword Matches CSV Path</label>
+                    <input type="text" id="keywordOutputPath" value="keyword_matches.csv">
+                    <div class="helper-text">Writes keyword match rows to a CSV file.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="outputPath">JSONL Output Path</label>
+                    <input type="text" id="outputPath" placeholder="results.jsonl">
+                    <div class="helper-text">Optional JSONL file for all matches.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="batchSize">Batch Size</label>
+                    <input type="number" id="batchSize" value="500" min="1">
+                    <div class="helper-text">Number of matches buffered before writing to JSONL.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="returnLimit">Return Limit</label>
+                    <input type="number" id="returnLimit" value="0" min="0">
+                    <div class="helper-text">Limit matches returned in the response (0 = no limit).</div>
                 </div>
             </div>
         </div>
@@ -452,6 +583,11 @@
             <div id="loadingInfo" class="loading">
                 <div class="spinner"></div>
                 <div class="loading-text">Processing documents with OCR...</div>
+                <div class="progress-wrapper">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+                <div id="progressText" class="progress-text">0% complete</div>
+                <div id="currentFile" class="progress-text"></div>
             </div>
             <div id="stats" class="stats" style="display: none;"></div>
             <div id="matchesList"></div>
@@ -466,11 +602,15 @@
             files: [],
             results: null,
             isProcessing: false,
-            serverConnected: false
+            serverConnected: false,
+            progressTimer: null
         };
 
         // Check server connection on page load
-        window.addEventListener('load', checkServerConnection);
+        window.addEventListener('load', () => {
+            checkServerConnection();
+            loadRegexFiles();
+        });
 
         async function checkServerConnection() {
             try {
@@ -495,17 +635,45 @@
                 statusDiv.className = 'server-status disconnected';
                 statusDiv.textContent = '🔴 Backend server not found. Make sure "python app.py" is running on http://127.0.0.1:5000';
             }
+            if (typeof updateScanButtonState === 'function') {
+                updateScanButtonState();
+            }
+        }
+
+        async function loadRegexFiles() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/regex-files`);
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data || !data.success || !Array.isArray(data.files)) return;
+                const datalist = document.getElementById('regexPathOptions');
+                datalist.innerHTML = data.files.map(f => `<option value="${escapeHtml(f)}"></option>`).join('');
+                const regexPathInput = document.getElementById('regexPath');
+                if (data.files.includes('regex_patterns.json')) {
+                    regexPathInput.value = 'regex_patterns.json';
+                }
+            } catch (error) {
+                // Ignore regex file discovery errors
+            }
         }
 
         // File input handling
         const fileInput = document.getElementById('fileInput');
         const fileInputLabel = document.querySelector('.file-input-label');
         const fileList = document.getElementById('fileList');
+        const regexFileInput = document.getElementById('regexFile');
+        const lexiconFileInput = document.getElementById('lexiconFile');
+        const regexFileName = document.getElementById('regexFileName');
+        const lexiconFileName = document.getElementById('lexiconFileName');
+        const scanPathInput = document.getElementById('scanPath');
 
         fileInput.addEventListener('change', handleFileSelect);
         fileInputLabel.addEventListener('dragover', handleDragOver);
         fileInputLabel.addEventListener('dragleave', handleDragLeave);
         fileInputLabel.addEventListener('drop', handleDrop);
+        regexFileInput.addEventListener('change', () => updateOptionalFileName(regexFileInput, regexFileName));
+        lexiconFileInput.addEventListener('change', () => updateOptionalFileName(lexiconFileInput, lexiconFileName));
+        scanPathInput.addEventListener('input', updateScanButtonState);
 
         function handleFileSelect(e) {
             const files = Array.from(e.target.files);
@@ -545,34 +713,92 @@
                     html += `<li>${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</li>`;
                 });
                 html += '</ul>';
-                document.getElementById('scanBtn').disabled = !state.serverConnected;
-            } else {
-                document.getElementById('scanBtn').disabled = true;
             }
+            updateScanButtonState();
             fileList.innerHTML = html;
+        }
+
+        function updateOptionalFileName(input, target) {
+            if (!input.files || input.files.length === 0) {
+                target.textContent = '';
+                return;
+            }
+            target.textContent = `Selected: ${input.files[0].name}`;
+        }
+
+        function generateScanId() {
+            if (window.crypto && crypto.randomUUID) {
+                return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+            }
+            return `${Date.now()}${Math.floor(Math.random() * 100000)}`.slice(0, 16);
+        }
+
+        function updateProgressUI(percent, currentDocument, status, current, total) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const currentFile = document.getElementById('currentFile');
+            const safePercent = Math.min(100, Math.max(0, percent || 0));
+            const isListing = status === 'listing';
+            progressBar.classList.toggle('indeterminate', isListing);
+            if (isListing) {
+                progressBar.style.width = '';
+                progressText.textContent = `Listing files... ${current || 0} found`;
+                currentFile.textContent = '';
+                return;
+            }
+            progressBar.style.width = `${safePercent}%`;
+            if (total > 0) {
+                progressText.textContent = `${safePercent}% complete (${current}/${total})`;
+            } else {
+                progressText.textContent = `${safePercent}% complete`;
+            }
+            currentFile.textContent = currentDocument ? `Current file: ${currentDocument}` : '';
+        }
+
+        function startProgressPolling(scanId) {
+            stopProgressPolling();
+            updateProgressUI(0, '');
+            state.progressTimer = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/progress/${scanId}`);
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    if (data && data.success) {
+                        updateProgressUI(
+                            data.percent || 0,
+                            data.current_document || '',
+                            data.status || '',
+                            data.current || 0,
+                            data.total || 0
+                        );
+                    }
+                } catch (error) {
+                    // Ignore progress polling errors
+                }
+            }, 500);
+        }
+
+        function stopProgressPolling() {
+            if (state.progressTimer) {
+                clearInterval(state.progressTimer);
+                state.progressTimer = null;
+            }
+        }
+
+        function updateScanButtonState() {
+            const scanPath = scanPathInput.value.trim();
+            const hasFilesOrPath = state.files.length > 0 || scanPath.length > 0;
+            document.getElementById('scanBtn').disabled = !state.serverConnected || !hasFilesOrPath;
         }
 
         // Scan button
         document.getElementById('scanBtn').addEventListener('click', performScan);
 
         async function performScan() {
-            const keywords = document.getElementById('keywordsList').value
-                .split('\n')
-                .map(k => k.trim())
-                .filter(k => k.length > 0);
+            const scanPath = document.getElementById('scanPath').value.trim();
 
-            const rejectWords = document.getElementById('rejectList').value
-                .split('\n')
-                .map(k => k.trim())
-                .filter(k => k.length > 0);
-
-            if (keywords.length === 0) {
-                showError('Please enter at least one keyword');
-                return;
-            }
-
-            if (state.files.length === 0) {
-                showError('Please select at least one file');
+            if (state.files.length === 0 && !scanPath) {
+                showError('Please select at least one file or provide a scan path');
                 return;
             }
 
@@ -580,16 +806,73 @@
             showLoading();
 
             try {
+                const scanId = generateScanId();
+                startProgressPolling(scanId);
+
                 // Prepare form data
                 const formData = new FormData();
                 state.files.forEach(file => {
                     formData.append('files', file);
                 });
-                formData.append('keywords', keywords.join('\n'));
-                formData.append('reject_words', rejectWords.join('\n'));
-                formData.append('case_sensitive', document.getElementById('caseSensitive').checked);
-                formData.append('whole_word', document.getElementById('wholeWord').checked);
-                formData.append('mode', document.querySelector('input[name="detectionMode"]:checked').value);
+                formData.append('scan_id', scanId);
+                formData.append('lexicon_path', document.getElementById('lexiconPath').value.trim());
+                formData.append('regex_path', document.getElementById('regexPath').value.trim());
+
+                if (lexiconFileInput.files[0]) {
+                    formData.append('lexicon_file', lexiconFileInput.files[0]);
+                }
+                if (regexFileInput.files[0]) {
+                    formData.append('regex_file', regexFileInput.files[0]);
+                }
+
+                if (scanPath) {
+                    formData.append('path', scanPath);
+                }
+                formData.append('recursive', document.getElementById('recursive').checked);
+
+                const fileTypes = document.getElementById('fileTypes').value.trim();
+                if (fileTypes) {
+                    formData.append('file_types', fileTypes);
+                }
+
+                formData.append('log_stdout', document.getElementById('logStdout').checked);
+
+                const logPath = document.getElementById('logPath').value.trim();
+                if (logPath) {
+                    formData.append('log_path', logPath);
+                }
+
+                formData.append('debug_text', document.getElementById('debugText').checked);
+
+                const debugTextPath = document.getElementById('debugTextPath').value.trim();
+                if (debugTextPath) {
+                    formData.append('debug_text_path', debugTextPath);
+                }
+
+                const regexOutputPath = document.getElementById('regexOutputPath').value.trim();
+                if (regexOutputPath) {
+                    formData.append('regex_output_path', regexOutputPath);
+                }
+
+                const keywordOutputPath = document.getElementById('keywordOutputPath').value.trim();
+                if (keywordOutputPath) {
+                    formData.append('keyword_output_path', keywordOutputPath);
+                }
+
+                const outputPath = document.getElementById('outputPath').value.trim();
+                if (outputPath) {
+                    formData.append('output_path', outputPath);
+                }
+
+                const batchSize = document.getElementById('batchSize').value.trim();
+                if (batchSize) {
+                    formData.append('batch_size', batchSize);
+                }
+
+                const returnLimit = document.getElementById('returnLimit').value.trim();
+                if (returnLimit) {
+                    formData.append('return_limit', returnLimit);
+                }
 
                 // Send to backend
                 const response = await fetch(`${API_BASE_URL}/scan`, {
@@ -598,8 +881,24 @@
                 });
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Server error');
+                    let message = 'Server error';
+                    const text = await response.text();
+                    if (text) {
+                        try {
+                            const error = JSON.parse(text);
+                            if (error && error.error) {
+                                message = error.error;
+                            } else {
+                                message = text;
+                            }
+                        } catch (parseError) {
+                            message = text;
+                        }
+                    }
+                    if (response.status === 413) {
+                        message = 'Upload too large. Use a server path scan or reduce file sizes.';
+                    }
+                    throw new Error(message);
                 }
 
                 const results = await response.json();
@@ -610,6 +909,7 @@
                 showError(error.message || 'Failed to process documents. Check backend server.');
             } finally {
                 state.isProcessing = false;
+                stopProgressPolling();
             }
         }
 
@@ -630,14 +930,16 @@
             }
 
             // Stats
+            const totalDocuments = results.documents_scanned ?? results.total_documents ?? 0;
+            const totalMatches = results.total_matches ?? (results.matches ? results.matches.length : 0);
             stats.innerHTML = `
                 <div class="stat-item">
                     <div class="stat-label">Documents Processed</div>
-                    <div class="stat-value">${results.total_documents}</div>
+                    <div class="stat-value">${totalDocuments}</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Matches Found</div>
-                    <div class="stat-value">${results.total_matches}</div>
+                    <div class="stat-value">${totalMatches}</div>
                 </div>
             `;
             stats.style.display = 'grid';
@@ -648,9 +950,11 @@
             } else {
                 matchesList.innerHTML = results.matches.map(m => `
                     <div class="match-result ${m.rejected ? 'muted' : ''}">
-                        <div><strong>Phrase:</strong> <span class="match-phrase">${escapeHtml(m.phrase)}</span></div>
+                        <div><strong>Type:</strong> ${escapeHtml(m.type || 'keyword')}</div>
+                        <div><strong>Match:</strong> <span class="match-phrase">${escapeHtml(m.phrase || m.regex_name || m.value || '')}</span></div>
                         <div><strong>Document:</strong> ${escapeHtml(m.document)}</div>
-                        <div class="match-context"><strong>Context:</strong> "${escapeHtml(m.context)}"</div>
+                        ${m.nearest_regex ? `<div><strong>Nearest Regex:</strong> ${escapeHtml(m.nearest_regex)} (${m.nearest_regex_distance ?? 'n/a'})</div>` : ''}
+                        ${m.context ? `<div class="match-context"><strong>Context:</strong> "${escapeHtml(m.context)}"</div>` : ''}
                         ${m.rejected ? '<div style="color: var(--color-warning); font-weight: 500; margin-top: 8px;">⚠️ Matched reject keyword</div>' : ''}
                     </div>
                 `).join('');
@@ -671,6 +975,7 @@
             document.getElementById('matchesList').innerHTML = '';
             document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('successMessage').style.display = 'none';
+            updateProgressUI(0, '', '', 0, 0);
         }
 
         function showError(message) {
@@ -691,9 +996,15 @@
                 content = JSON.stringify(data, null, 2);
                 downloadFile(content, 'results.json', 'application/json');
             } else if (format === 'csv') {
-                content = 'Phrase,Document,Context,Rejected\n';
+                content = 'Type,Match,Document,Context,NearestRegex,NearestRegexDistance,Rejected\n';
                 data.forEach(m => {
-                    content += `"${m.phrase.replace(/"/g, '""')}","${m.document}","${m.context.replace(/"/g, '""')}","${m.rejected}"\n`;
+                    const matchValue = m.phrase || m.regex_name || m.value || '';
+                    const context = m.context || '';
+                    const nearestRegex = m.nearest_regex || '';
+                    const nearestRegexDistance = m.nearest_regex_distance ?? '';
+                    const type = m.type || 'keyword';
+                    const rejected = m.rejected ?? '';
+                    content += `"${String(type).replace(/"/g, '""')}","${String(matchValue).replace(/"/g, '""')}","${String(m.document || '').replace(/"/g, '""')}","${String(context).replace(/"/g, '""')}","${String(nearestRegex).replace(/"/g, '""')}","${String(nearestRegexDistance).replace(/"/g, '""')}","${String(rejected).replace(/"/g, '""')}"\n`;
                 });
                 downloadFile(content, 'results.csv', 'text/csv');
             }
@@ -720,13 +1031,30 @@
         // Clear button
         document.getElementById('clearBtn').addEventListener('click', () => {
             document.getElementById('fileInput').value = '';
-            document.getElementById('keywordsList').value = '';
-            document.getElementById('rejectList').value = '';
+            document.getElementById('regexFile').value = '';
+            document.getElementById('lexiconFile').value = '';
+            document.getElementById('regexPath').value = 'regex_patterns.json';
+            document.getElementById('lexiconPath').value = 'lexicon_latest.csv';
+            document.getElementById('scanPath').value = '';
+            document.getElementById('fileTypes').value = '';
+            document.getElementById('recursive').checked = true;
+            document.getElementById('logStdout').checked = true;
+            document.getElementById('debugText').checked = false;
+            document.getElementById('logPath').value = '';
+            document.getElementById('debugTextPath').value = 'extracted_text.log';
+            document.getElementById('regexOutputPath').value = 'regex_matches.csv';
+            document.getElementById('keywordOutputPath').value = 'keyword_matches.csv';
+            document.getElementById('outputPath').value = '';
+            document.getElementById('batchSize').value = '500';
+            document.getElementById('returnLimit').value = '0';
             document.getElementById('resultsSection').style.display = 'none';
             state.files = [];
             state.results = null;
             fileList.innerHTML = '';
+            regexFileName.textContent = '';
+            lexiconFileName.textContent = '';
             document.getElementById('scanBtn').disabled = !state.serverConnected;
+            updateProgressUI(0, '', '', 0, 0);
         });
     </script>
 </body>
