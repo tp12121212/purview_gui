@@ -7,6 +7,13 @@
 {
     "name": "australia_vic_licence_back_3",
     "pattern": "(?i)CARRY LICENCE WHEN DRIVING"
+  },
+{
+    "name": "australia_vic_licence_front",
+    "pattern": "(?i)\\bDRIVER\\b[\\s\\S]*?\\bLICENCE\\b[\\s\\S]*?\\bVICTORIA\\b[\\s\\S]*?\\bAUSTRALIA\\b[\\s\\S]*?\\bEXPIRY\\b"
   }
 
+
+
+  
 ]

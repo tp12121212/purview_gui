@@ -3,7 +3,7 @@ import csv
 import json
 import tempfile
 from pathlib import Path
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import re
 import html as html_lib
@@ -24,7 +24,16 @@ import warnings
 # ======================================================
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "http://127.0.0.1:5500",
+            "http://localhost:5500",
+            "null",
+            "file://",
+        ]
+    }
+})
 
 # Allow large images while keeping a sane cap to avoid DoS warnings.
 Image.MAX_IMAGE_PIXELS = 200_000_000
@@ -701,22 +710,46 @@ def health():
         "ocr_available": True
     })
 
+
+@app.route("/", methods=["GET"])
+def index():
+    return send_from_directory(".", "index.html")
+
+
+@app.route("/index.html", methods=["GET"])
+def index_html():
+    return send_from_directory(".", "index.html")
+
 @app.route("/regex-files", methods=["GET"])
 def regex_files():
     root = Path(".").resolve()
     files = []
     try:
-        for path in root.rglob("regex_patterns*.json"):
-            files.append(str(path.relative_to(root)))
-            if len(files) >= 200:
-                break
+        for path in root.glob("regex_patterns*.json"):
+            if path.is_file():
+                files.append(path.name)
+                if len(files) >= 200:
+                    break
     except OSError:
         pass
     files.sort()
-    return jsonify({
-        "success": True,
-        "files": files
-    })
+    return jsonify({"success": True, "files": files})
+
+
+@app.route("/lexicon-files", methods=["GET"])
+def lexicon_files():
+    root = Path(".").resolve()
+    files = []
+    try:
+        for path in root.glob("lexicon*.csv"):
+            if path.is_file():
+                files.append(path.name)
+                if len(files) >= 200:
+                    break
+    except OSError:
+        pass
+    files.sort()
+    return jsonify({"success": True, "files": files})
 
 @app.route("/progress/<scan_id>", methods=["GET"])
 def progress(scan_id):
@@ -733,4 +766,4 @@ def progress(scan_id):
 
 if __name__ == "__main__":
     print("Starting Document Scanner Backend Server...")
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

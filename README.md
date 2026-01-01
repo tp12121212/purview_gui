@@ -199,6 +199,47 @@ Parameters:
 - return_limit: (integer) Max matches to include in response when output_path is set (0 = none)
 ```
 
+### GET /regex-files
+Returns JSON list of regex pattern files in the project root (e.g. `regex_patterns.json`, `regex_patterns_simple.json`).
+
+### GET /lexicon-files
+Returns JSON list of lexicon CSV files in the project root (any file starting with `lexicon` and ending in `.csv`).
+
+### GET /progress/<scan_id>
+Returns progress details for a running scan (percent, current document, counts). Used by the UI progress bar.
+
+---
+
+## Curl Examples
+
+### Upload files
+```bash
+curl -X POST "http://127.0.0.1:5000/scan" \
+  -F "scan_id=scan1234567890abcd" \
+  -F "files=@/absolute/path/to/document.pdf" \
+  -F "lexicon_path=lexicon_latest.csv" \
+  -F "regex_path=regex_patterns.json" \
+  -F "recursive=true" \
+  -F "file_types=pdf,docx,xlsx,jpg,jpeg,png,tif,tiff,eml,msg" \
+  -F "log_stdout=true" \
+  -F "debug_text=false" \
+  -F "debug_text_path=extracted_text.log" \
+  -F "regex_output_path=regex_matches.csv" \
+  -F "keyword_output_path=keyword_matches.csv" \
+  -F "batch_size=500" \
+  -F "return_limit=0"
+```
+
+### Scan a server path
+```bash
+curl -X POST "http://127.0.0.1:5000/scan" \
+  -F "scan_id=scan1234567890abcd" \
+  -F "path=/path/to/folder" \
+  -F "recursive=true" \
+  -F "lexicon_path=lexicon_latest.csv" \
+  -F "regex_path=regex_patterns.json"
+```
+
 **Response:**
 ```json
 {

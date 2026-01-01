@@ -6,16 +6,18 @@
     <title>Document Scanner with OCR & Keyword Detection</title>
     <style>
         :root {
-            --color-primary: #2180cd;
-            --color-primary-hover: #1a68a0;
-            --color-bg: #f5f5f5;
-            --color-surface: #ffffff;
-            --color-text: #1a1a1a;
-            --color-text-secondary: #666666;
-            --color-border: #e0e0e0;
-            --color-success: #4caf50;
-            --color-error: #f44336;
-            --color-warning: #ff9800;
+            --ink: #1e2128;
+            --ink-muted: #5b636f;
+            --accent: #0e7490;
+            --accent-strong: #0a5b72;
+            --accent-soft: #dff2f7;
+            --sun: #f59e0b;
+            --bg: #f4f0e8;
+            --surface: #ffffff;
+            --border: #e3e0d8;
+            --success: #16a34a;
+            --error: #dc2626;
+            --shadow: 0 18px 40px rgba(17, 24, 39, 0.1);
         }
 
         * {
@@ -23,11 +25,11 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--color-bg);
-            color: var(--color-text);
             margin: 0;
-            padding: 20px;
+            padding: 24px;
+            color: var(--ink);
+            background: radial-gradient(circle at top left, #fff3d6 0%, #f4f0e8 45%, #eaf2f4 100%);
+            font-family: "Avenir Next", "Futura", "Trebuchet MS", sans-serif;
         }
 
         .container {
@@ -35,687 +37,788 @@
             margin: 0 auto;
         }
 
+        header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
         h1 {
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 32px;
+            margin: 0 0 8px 0;
+            font-size: 30px;
+            letter-spacing: 0.5px;
         }
 
         .subtitle {
+            margin: 0;
+            color: var(--ink-muted);
+            max-width: 560px;
+            line-height: 1.5;
+        }
+
+        .server-pill {
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid transparent;
+            min-width: 260px;
             text-align: center;
-            color: var(--color-text-secondary);
-            margin-bottom: 30px;
+        }
+
+        .server-pill.connected {
+            background: #e7f7ec;
+            color: #116b34;
+            border-color: #bde5c8;
+        }
+
+        .server-pill.disconnected {
+            background: #ffe4e6;
+            color: #b42318;
+            border-color: #fecdd3;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 22px;
         }
 
         @media (max-width: 900px) {
+            body {
+                padding: 16px;
+            }
+
+            header {
+                flex-direction: column;
+            }
+
             .grid {
                 grid-template-columns: 1fr;
             }
         }
 
         .card {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px 22px;
+            box-shadow: var(--shadow);
+            margin-bottom: 18px;
         }
 
         .card h2 {
-            margin-top: 0;
-            font-size: 20px;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .helper-text {
-            color: var(--color-text-secondary);
-            font-size: 12px;
-            margin-top: 6px;
-            line-height: 1.4;
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            letter-spacing: 0.3px;
         }
 
         label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 13px;
         }
 
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
             width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
         }
 
-        .file-input-wrapper input[type="file"] {
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.12);
+        }
+
+        .helper {
+            font-size: 12px;
+            color: var(--ink-muted);
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .info {
+            background: var(--accent-soft);
+            color: #0a4e61;
+            border-left: 4px solid var(--accent);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        .input-block {
+            margin-bottom: 16px;
+        }
+
+        .file-drop {
+            border: 2px dashed rgba(14, 116, 144, 0.35);
+            background: #f8fbfc;
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .file-drop.active {
+            background: #e7f4f7;
+            border-color: var(--accent);
+        }
+
+        .file-drop small {
+            display: block;
+            margin-top: 8px;
+            color: var(--ink-muted);
+        }
+
+        .file-drop input[type="file"] {
             position: absolute;
             left: -9999px;
         }
 
-        .file-input-label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border: 2px dashed var(--color-primary);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.2s;
+        .file-list {
+            font-size: 12px;
+            color: var(--ink-muted);
+            margin-top: 8px;
         }
 
-        .file-input-label:hover {
-            background-color: #f0f7ff;
-        }
-
-        .file-input-label.active {
-            background-color: #e3f2fd;
-        }
-
-        textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--color-border);
-            border-radius: 6px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            resize: vertical;
-            min-height: 120px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-
-        input[type="text"],
-        input[type="number"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--color-border);
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-
-        input[type="text"]:focus,
-        input[type="number"]:focus {
-            outline: none;
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px rgba(33, 128, 141, 0.1);
-        }
-
-        textarea:focus {
-            outline: none;
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px rgba(33, 128, 141, 0.1);
-        }
-
-        .checkbox-group {
+        .row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
-            margin-top: 12px;
         }
 
-        .checkbox-item {
-            display: flex;
-            align-items: center;
+        @media (max-width: 700px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 8px;
         }
 
-        input[type="checkbox"],
-        input[type="radio"] {
-            cursor: pointer;
-            accent-color: var(--color-primary);
+        .checkboxes label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            margin: 0;
         }
 
-        .button-group {
+        .buttons {
             display: flex;
-            gap: 12px;
-            margin-top: 20px;
+            gap: 10px;
+            margin-top: 8px;
         }
 
         button {
-            padding: 12px 24px;
             border: none;
-            border-radius: 6px;
+            border-radius: 12px;
+            padding: 11px 16px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
         }
 
         .btn-primary {
-            background-color: var(--color-primary);
+            background: var(--accent);
             color: white;
             flex: 1;
         }
 
         .btn-primary:hover {
-            background-color: var(--color-primary-hover);
+            background: var(--accent-strong);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(14, 116, 144, 0.2);
         }
 
         .btn-secondary {
-            background-color: #f0f0f0;
-            color: var(--color-text);
-            border: 1px solid var(--color-border);
+            background: #f1ede3;
+            color: var(--ink);
+            border: 1px solid var(--border);
         }
 
         .btn-secondary:hover {
-            background-color: #e8e8e8;
+            transform: translateY(-1px);
         }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .results-section {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .results-section h2 {
-            margin-top: 0;
-            font-size: 20px;
-            margin-bottom: 20px;
-        }
-
-        .no-results {
-            text-align: center;
-            padding: 40px;
-            color: var(--color-text-secondary);
-            font-size: 16px;
-        }
-
-        .match-result {
-            background-color: #f9f9f9;
-            border-left: 4px solid var(--color-success);
-            padding: 15px;
-            margin-bottom: 12px;
-            border-radius: 4px;
-        }
-
-        .match-result.muted {
-            border-left-color: var(--color-warning);
-            background-color: #fffbf0;
-        }
-
-        .match-phrase {
-            font-weight: 600;
-            color: var(--color-success);
-            font-family: 'Courier New', monospace;
-            word-break: break-all;
-        }
-
-        .match-result.muted .match-phrase {
-            color: var(--color-warning);
-        }
-
-        .match-context {
-            color: var(--color-text-secondary);
-            font-size: 13px;
-            margin-top: 6px;
-            font-style: italic;
-        }
-
-        .stats {
-            background-color: #f0f7ff;
-            border: 1px solid #b3d9ff;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: var(--color-text-secondary);
-            font-weight: 500;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--color-primary);
-            margin-top: 4px;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .spinner {
-            border: 4px solid #f0f0f0;
-            border-top: 4px solid var(--color-primary);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            color: var(--color-text-secondary);
-            font-size: 14px;
-        }
-
-        .progress-wrapper {
-            width: 100%;
-            height: 10px;
-            background-color: #e0e0e0;
-            border-radius: 6px;
-            overflow: hidden;
+        .progress {
             margin-top: 12px;
         }
 
         .progress-bar {
-            height: 100%;
-            width: 0%;
-            background-color: var(--color-primary);
-            transition: width 0.2s ease;
+            width: 100%;
+            height: 10px;
+            background: #efe7d8;
+            border-radius: 999px;
+            overflow: hidden;
         }
 
-        .progress-bar.indeterminate {
+        .progress-bar span {
+            display: block;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), #38bdf8);
+            transition: width 0.25s ease;
+        }
+
+        .progress-bar.indeterminate span {
             width: 30%;
             animation: indeterminate 1.2s infinite;
         }
 
-        .progress-text {
-            margin-top: 8px;
-            font-size: 13px;
-            color: var(--color-text-secondary);
-        }
-
         @keyframes indeterminate {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(300%); }
+            0% { transform: translateX(-120%); }
+            100% { transform: translateX(360%); }
         }
 
-        .error-message {
-            background-color: #ffebee;
-            border: 1px solid #ffcdd2;
-            border-radius: 6px;
-            padding: 15px;
-            color: #c62828;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .success-message {
-            background-color: #e8f5e9;
-            border: 1px solid #c8e6c9;
-            border-radius: 6px;
-            padding: 15px;
-            color: #2e7d32;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .info-box {
-            background-color: #e3f2fd;
-            border-left: 4px solid var(--color-primary);
-            padding: 12px;
-            border-radius: 4px;
-            font-size: 13px;
-            color: #01579b;
-            margin-bottom: 15px;
-        }
-
-        .export-buttons {
+        .progress-meta {
+            font-size: 12px;
+            color: var(--ink-muted);
+            margin-top: 6px;
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid var(--color-border);
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
-        .export-buttons button {
-            flex: 1;
+        .results {
+            margin-top: 24px;
         }
 
-        .server-status {
-            text-align: center;
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 6px;
+        .results h2 {
+            margin-top: 0;
+        }
+
+        .message {
+            padding: 10px 12px;
+            border-radius: 10px;
             font-size: 13px;
-            font-weight: 500;
+            margin-bottom: 12px;
+            display: none;
         }
 
-        .server-status.connected {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            border: 1px solid #c8e6c9;
+        .message.error {
+            background: #ffe4e6;
+            border: 1px solid #fecdd3;
+            color: #b42318;
         }
 
-        .server-status.disconnected {
-            background-color: #ffebee;
-            color: #c62828;
-            border: 1px solid #ffcdd2;
+        .message.success {
+            background: #e8f7ef;
+            border: 1px solid #bfe6cf;
+            color: #136c36;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat {
+            padding: 12px;
+            border-radius: 12px;
+            background: #f8f4eb;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .stat span {
+            display: block;
+            font-size: 12px;
+            color: var(--ink-muted);
+        }
+
+        .stat strong {
+            font-size: 22px;
+        }
+
+        .match {
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            background: #fffaf0;
+            margin-bottom: 10px;
+        }
+
+        .match.muted {
+            background: #fff6e6;
+            border-color: #fcd34d;
+        }
+
+        .match-title {
+            font-weight: 700;
+            color: var(--accent-strong);
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .match small {
+            color: var(--ink-muted);
+        }
+
+        .export {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .curl-preview {
+            width: 100%;
+            min-height: 120px;
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📄 Document Scanner</h1>
-        <p class="subtitle">OCR-powered document analysis with intelligent phrase detection</p>
-
-        <div id="serverStatus" class="server-status disconnected">
-            🔴 Connecting to backend server...
-        </div>
+        <header>
+            <div>
+                <h1>Document Scanner</h1>
+                <p class="subtitle">OCR-powered scanning with lexicon keywords and regex correlation. Configure inputs, review progress, and export results.</p>
+            </div>
+            <div id="serverStatus" class="server-pill disconnected">Connecting to backend...</div>
+        </header>
 
         <div class="grid">
-            <!-- Left Column: Document Upload -->
-            <div class="card">
-                <h2>1. Upload Document</h2>
-                
-                <div class="form-group">
-                    <label>Select File(s)</label>
-                    <p class="info-box">Supported: PDF, Word (.docx), Excel (.xlsx), JPEG, PNG, TIFF, and email files (.eml, .msg)</p>
-                    <div class="file-input-wrapper">
-                        <input type="file" id="fileInput" multiple webkitdirectory directory accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.tiff,.tif,.eml,.msg">
-                        <label for="fileInput" class="file-input-label">
-                            <span>📁 Click to browse or drag files/folders here</span>
-                        </label>
+            <div>
+                <div class="card">
+                    <h2>Input Source</h2>
+                    <div class="input-block">
+                        <label for="apiBaseUrl">Backend URL</label>
+                        <input type="text" id="apiBaseUrl" value="http://127.0.0.1:5000">
+                        <div class="helper">Update if the Flask server runs on a different host or port.</div>
                     </div>
-                    <div id="fileList" style="margin-top: 10px; font-size: 13px; color: var(--color-text-secondary);"></div>
-                    <div class="helper-text">Folder uploads use the browser file picker; drag-and-drop folders may not work in all browsers.</div>
+                    <div class="input-block">
+                        <label for="inputSource">Select Source</label>
+                        <select id="inputSource">
+                            <option value="upload">Upload files or folders (browser)</option>
+                            <option value="path">Scan a server path</option>
+                        </select>
+                    </div>
+                    <div id="uploadSection" class="input-block">
+                        <label>Upload Files / Folders</label>
+                        <div class="info">Supported: PDF, DOCX, XLSX, JPG, PNG, TIFF, EML, MSG</div>
+                        <div class="file-drop" id="fileDrop">
+                            Click to browse or drag files and folders here
+                            <small>Folder uploads use the browser picker; drag-drop folders may not work in all browsers.</small>
+                            <input type="file" id="fileInput" multiple webkitdirectory directory accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.tiff,.tif,.eml,.msg">
+                        </div>
+                        <div id="fileList" class="file-list"></div>
+                    </div>
+                    <div id="pathSection" class="input-block hidden">
+                        <label for="scanPath">Server Path</label>
+                        <input type="text" id="scanPath" value="" placeholder="/path/to/folder">
+                        <div class="helper">Scans files on the server machine instead of uploading.</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Detection Files</h2>
+                    <div class="input-block">
+                        <label for="regexPath">Regex Patterns (JSON)</label>
+                        <select id="regexPicklist"></select>
+                        <input type="text" id="regexPath" value="regex_patterns.json" style="margin-top: 8px;">
+                        <div class="helper">Pick a file from the project root, or enter a server path.</div>
+                        <div id="regexStatus" class="helper"></div>
+                        <div style="margin-top: 8px;">
+                            <input type="file" id="regexFile" accept=".json,application/json">
+                            <div id="regexFileName" class="helper"></div>
+                        </div>
+                    </div>
+                    <div class="input-block">
+                        <label for="lexiconPath">Lexicon Keywords (CSV)</label>
+                        <select id="lexiconPicklist"></select>
+                        <input type="text" id="lexiconPath" value="lexicon_latest.csv" style="margin-top: 8px;">
+                        <div class="helper">Shows CSV files starting with \"lexicon\" in the project root.</div>
+                        <div id="lexiconStatus" class="helper"></div>
+                        <div style="margin-top: 8px;">
+                            <input type="file" id="lexiconFile" accept=".csv,text/csv">
+                            <div id="lexiconFileName" class="helper"></div>
+                        </div>
+                    </div>
+                    <button class="btn-secondary" id="refreshLists">Refresh picklists</button>
                 </div>
             </div>
 
-            <!-- Right Column: Keyword Configuration -->
-            <div class="card">
-                <h2>2. Configure Detection</h2>
-
-                <div class="form-group">
-                    <label>Regex Patterns (JSON)</label>
-                    <p class="info-box">Default: regex_patterns.json</p>
-                    <div class="file-input-wrapper">
-                        <input type="file" id="regexFile" accept=".json,application/json">
-                        <label for="regexFile" class="file-input-label">
-                            <span>🧩 Optional: upload regex patterns file</span>
-                        </label>
-                    </div>
-                    <div id="regexFileName" style="margin-top: 8px; font-size: 13px; color: var(--color-text-secondary);"></div>
-                    <label for="regexPath" style="margin-top: 12px;">Regex File Path (server)</label>
-                    <input type="text" id="regexPath" value="regex_patterns.json" list="regexPathOptions">
-                    <datalist id="regexPathOptions"></datalist>
-                    <div class="helper-text">Use upload for a local file or set a server path if the JSON is already on disk.</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Lexicon Keywords (CSV)</label>
-                    <p class="info-box">Default: lexicon_latest.csv</p>
-                    <div class="file-input-wrapper">
-                        <input type="file" id="lexiconFile" accept=".csv,text/csv">
-                        <label for="lexiconFile" class="file-input-label">
-                            <span>🗂️ Optional: upload lexicon CSV</span>
-                        </label>
-                    </div>
-                    <div id="lexiconFileName" style="margin-top: 8px; font-size: 13px; color: var(--color-text-secondary);"></div>
-                    <label for="lexiconPath" style="margin-top: 12px;">Lexicon File Path (server)</label>
-                    <input type="text" id="lexiconPath" value="lexicon_latest.csv">
-                    <div class="helper-text">Lexicon is a CSV of keywords used for strict adjacent two-word matching.</div>
-                </div>
-
-                <div class="form-group">
-                    <p class="info-box">Keyword detection uses the lexicon CSV (strict adjacent two-word phrases). Regex matching runs independently.</p>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>3. Advanced Options</h2>
-
-                <div class="form-group">
-                    <label for="scanPath">Local Path to Scan (server)</label>
-                    <input type="text" id="scanPath" placeholder="/path/to/folder">
-                    <div class="helper-text">Scans files on the server machine instead of uploading.</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="fileTypes">Limit File Types (comma-separated)</label>
-                    <input type="text" id="fileTypes" placeholder="pdf,docx,xlsx,jpg,png,tif,tiff,eml,msg">
-                    <div class="helper-text">Restricts scanning to specific extensions.</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Scan Options</label>
-                    <div class="checkbox-group">
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="recursive" checked>
-                            <label for="recursive" style="margin-bottom: 0;">Recursive Scan</label>
+            <div>
+                <div class="card">
+                    <h2>Scan Options</h2>
+                    <div class="row">
+                        <div class="input-block">
+                            <label for="fileTypes">File Types (comma-separated)</label>
+                            <input type="text" id="fileTypes" value="pdf,docx,xlsx,jpg,jpeg,png,tif,tiff,eml,msg">
+                            <div class="helper">Limits scanning to specific extensions.</div>
                         </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="logStdout" checked>
-                            <label for="logStdout" style="margin-bottom: 0;">Log to Stdout</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="debugText">
-                            <label for="debugText" style="margin-bottom: 0;">Log Extracted Text</label>
+                        <div class="input-block">
+                            <label for="batchSize">Batch Size</label>
+                            <input type="number" id="batchSize" value="500" min="1">
                         </div>
                     </div>
-                    <div class="helper-text">Recursive scans subfolders. Log to stdout prints progress in the server console. Log extracted text writes raw text to a file.</div>
+                    <div class="row">
+                        <div class="input-block">
+                            <label for="returnLimit">Return Limit</label>
+                            <input type="number" id="returnLimit" value="0" min="0">
+                        </div>
+                        <div class="input-block">
+                            <label for="logPath">Log File Path</label>
+                            <input type="text" id="logPath" value="" placeholder="scan.log">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="input-block">
+                            <label for="debugTextPath">Extracted Text Output</label>
+                            <input type="text" id="debugTextPath" value="extracted_text.log">
+                        </div>
+                        <div class="input-block">
+                            <label for="outputPath">JSONL Output Path</label>
+                            <input type="text" id="outputPath" value="" placeholder="results.jsonl">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="input-block">
+                            <label for="regexOutputPath">Regex CSV Path</label>
+                            <input type="text" id="regexOutputPath" value="regex_matches.csv">
+                        </div>
+                        <div class="input-block">
+                            <label for="keywordOutputPath">Keyword CSV Path</label>
+                            <input type="text" id="keywordOutputPath" value="keyword_matches.csv">
+                        </div>
+                    </div>
+                    <div class="input-block">
+                        <label>Flags</label>
+                        <div class="checkboxes">
+                            <label><input type="checkbox" id="recursive" checked> Recursive scan</label>
+                            <label><input type="checkbox" id="logStdout" checked> Log to stdout</label>
+                            <label><input type="checkbox" id="debugText"> Log extracted text</label>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="logPath">Log File Path (server)</label>
-                    <input type="text" id="logPath" placeholder="scan.log">
-                    <div class="helper-text">Append scan logs to this file on the server.</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="debugTextPath">Extracted Text Output Path</label>
-                    <input type="text" id="debugTextPath" value="extracted_text.log">
-                    <div class="helper-text">Used when “Log Extracted Text” is enabled.</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="regexOutputPath">Regex Matches CSV Path</label>
-                    <input type="text" id="regexOutputPath" value="regex_matches.csv">
-                    <div class="helper-text">Writes regex match rows to a CSV file.</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="keywordOutputPath">Keyword Matches CSV Path</label>
-                    <input type="text" id="keywordOutputPath" value="keyword_matches.csv">
-                    <div class="helper-text">Writes keyword match rows to a CSV file.</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="outputPath">JSONL Output Path</label>
-                    <input type="text" id="outputPath" placeholder="results.jsonl">
-                    <div class="helper-text">Optional JSONL file for all matches.</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="batchSize">Batch Size</label>
-                    <input type="number" id="batchSize" value="500" min="1">
-                    <div class="helper-text">Number of matches buffered before writing to JSONL.</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="returnLimit">Return Limit</label>
-                    <input type="number" id="returnLimit" value="0" min="0">
-                    <div class="helper-text">Limit matches returned in the response (0 = no limit).</div>
+                <div class="card">
+                    <h2>Run Scan</h2>
+                    <div class="buttons">
+                        <button class="btn-primary" id="scanBtn" disabled>Scan & Analyze</button>
+                        <button class="btn-secondary" id="clearBtn">Clear</button>
+                    </div>
+                    <div class="progress" id="progressWrap">
+                        <div class="progress-bar" id="progressBar">
+                            <span></span>
+                        </div>
+                        <div class="progress-meta">
+                            <span id="progressText">Idle</span>
+                            <span id="currentFile"></span>
+                        </div>
+                    </div>
+                    <div class="input-block" style="margin-top: 14px;">
+                        <label for="curlPreview">Curl Preview</label>
+                        <textarea id="curlPreview" class="curl-preview" readonly></textarea>
+                        <div class="buttons" style="margin-top: 8px;">
+                            <button class="btn-secondary" id="copyCurl">Copy curl</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div style="text-align: center; margin-bottom: 30px;">
-            <div class="button-group">
-                <button class="btn-primary" id="scanBtn" disabled>🔍 Scan & Analyze</button>
-                <button class="btn-secondary" id="clearBtn">Clear All</button>
-            </div>
-        </div>
-
-        <!-- Results Section -->
-        <div class="results-section" id="resultsSection" style="display: none;">
-            <h2>📊 Results</h2>
-            <div id="errorMessage" class="error-message"></div>
-            <div id="successMessage" class="success-message"></div>
-            <div id="loadingInfo" class="loading">
-                <div class="spinner"></div>
-                <div class="loading-text">Processing documents with OCR...</div>
-                <div class="progress-wrapper">
-                    <div id="progressBar" class="progress-bar"></div>
-                </div>
-                <div id="progressText" class="progress-text">0% complete</div>
-                <div id="currentFile" class="progress-text"></div>
-            </div>
+        <div class="results card" id="resultsSection" style="display: none;">
+            <h2>Results</h2>
+            <div id="errorMessage" class="message error"></div>
+            <div id="successMessage" class="message success"></div>
             <div id="stats" class="stats" style="display: none;"></div>
             <div id="matchesList"></div>
-            <div id="exportButtons" class="export-buttons" style="display: none;"></div>
+            <div id="exportButtons" class="export" style="display: none;"></div>
         </div>
     </div>
 
     <script>
-        const API_BASE_URL = 'http://127.0.0.1:5000';
-        
         const state = {
             files: [],
             results: null,
-            isProcessing: false,
             serverConnected: false,
-            progressTimer: null
+            progressTimer: null,
+            lastScanId: null
         };
 
-        // Check server connection on page load
+        const elements = {
+            apiBaseUrl: document.getElementById('apiBaseUrl'),
+            inputSource: document.getElementById('inputSource'),
+            uploadSection: document.getElementById('uploadSection'),
+            pathSection: document.getElementById('pathSection'),
+            fileInput: document.getElementById('fileInput'),
+            fileDrop: document.getElementById('fileDrop'),
+            fileList: document.getElementById('fileList'),
+            scanPath: document.getElementById('scanPath'),
+            regexPath: document.getElementById('regexPath'),
+            lexiconPath: document.getElementById('lexiconPath'),
+            regexPicklist: document.getElementById('regexPicklist'),
+            lexiconPicklist: document.getElementById('lexiconPicklist'),
+            regexFile: document.getElementById('regexFile'),
+            lexiconFile: document.getElementById('lexiconFile'),
+            regexFileName: document.getElementById('regexFileName'),
+            lexiconFileName: document.getElementById('lexiconFileName'),
+            regexStatus: document.getElementById('regexStatus'),
+            lexiconStatus: document.getElementById('lexiconStatus'),
+            refreshLists: document.getElementById('refreshLists'),
+            scanBtn: document.getElementById('scanBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            progressWrap: document.getElementById('progressWrap'),
+            progressBar: document.getElementById('progressBar'),
+            progressText: document.getElementById('progressText'),
+            currentFile: document.getElementById('currentFile'),
+            curlPreview: document.getElementById('curlPreview'),
+            copyCurl: document.getElementById('copyCurl')
+        };
+
         window.addEventListener('load', () => {
             checkServerConnection();
-            loadRegexFiles();
+            loadPicklists();
+            updateCurlPreview();
         });
 
-        async function checkServerConnection() {
+        elements.apiBaseUrl.addEventListener('change', () => {
+            checkServerConnection();
+            loadPicklists();
+            updateCurlPreview();
+        });
+
+        elements.inputSource.addEventListener('change', () => {
+            const source = elements.inputSource.value;
+            const isUpload = source === 'upload';
+            elements.uploadSection.classList.toggle('hidden', !isUpload);
+            elements.pathSection.classList.toggle('hidden', isUpload);
+            updateScanButtonState();
+            updateCurlPreview();
+        });
+
+        elements.scanPath.addEventListener('input', () => {
+            updateScanButtonState();
+            updateCurlPreview();
+        });
+
+        elements.fileInput.addEventListener('change', handleFileSelect);
+        elements.fileDrop.addEventListener('click', () => elements.fileInput.click());
+        elements.fileDrop.addEventListener('dragover', handleDragOver);
+        elements.fileDrop.addEventListener('dragleave', handleDragLeave);
+        elements.fileDrop.addEventListener('drop', handleDrop);
+
+        elements.regexFile.addEventListener('change', () => updateOptionalFileName(elements.regexFile, elements.regexFileName));
+        elements.lexiconFile.addEventListener('change', () => updateOptionalFileName(elements.lexiconFile, elements.lexiconFileName));
+        elements.refreshLists.addEventListener('click', () => loadPicklists(true));
+        elements.regexPicklist.addEventListener('change', () => syncPicklistToInput('regex'));
+        elements.lexiconPicklist.addEventListener('change', () => syncPicklistToInput('lexicon'));
+
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.id !== 'curlPreview') {
+                el.addEventListener('input', updateCurlPreview);
+                el.addEventListener('change', updateCurlPreview);
+            }
+        });
+
+        elements.regexPath.addEventListener('input', () => {
+            if (elements.regexPicklist.value !== '__custom__') {
+                elements.regexPicklist.value = '__custom__';
+            }
+        });
+
+        elements.lexiconPath.addEventListener('input', () => {
+            if (elements.lexiconPicklist.value !== '__custom__') {
+                elements.lexiconPicklist.value = '__custom__';
+            }
+        });
+
+        elements.copyCurl.addEventListener('click', async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/health`);
+                await navigator.clipboard.writeText(elements.curlPreview.value);
+                flashMessage('Curl command copied.', 'success');
+            } catch (error) {
+                flashMessage('Unable to copy curl command.', 'error');
+            }
+        });
+
+        function getApiBaseUrl() {
+            const value = elements.apiBaseUrl.value.trim();
+            return value || 'http://127.0.0.1:5000';
+        }
+
+        async function checkServerConnection() {
+            const statusDiv = document.getElementById('serverStatus');
+            try {
+                const response = await fetch(`${getApiBaseUrl()}/health`);
                 if (response.ok) {
                     state.serverConnected = true;
-                    updateServerStatus(true);
+                    statusDiv.className = 'server-pill connected';
+                    statusDiv.textContent = 'Connected to backend';
                 } else {
-                    updateServerStatus(false);
+                    throw new Error('Not ready');
                 }
             } catch (error) {
-                updateServerStatus(false);
+                state.serverConnected = false;
+                statusDiv.className = 'server-pill disconnected';
+                statusDiv.textContent = 'Backend not reachable';
+                elements.regexStatus.textContent = 'Picklist unavailable (backend offline).';
+                elements.lexiconStatus.textContent = 'Picklist unavailable (backend offline).';
             }
+            updateScanButtonState();
         }
 
-        function updateServerStatus(connected) {
-            const statusDiv = document.getElementById('serverStatus');
-            if (connected) {
-                statusDiv.className = 'server-status connected';
-                statusDiv.textContent = '🟢 Connected to backend server';
-            } else {
-                statusDiv.className = 'server-status disconnected';
-                statusDiv.textContent = '🔴 Backend server not found. Make sure "python app.py" is running on http://127.0.0.1:5000';
-            }
-            if (typeof updateScanButtonState === 'function') {
-                updateScanButtonState();
-            }
+        async function loadPicklists(force) {
+            await Promise.all([
+                loadRegexFiles(force),
+                loadLexiconFiles(force)
+            ]);
         }
 
-        async function loadRegexFiles() {
+        async function loadRegexFiles(force) {
+            const picklist = elements.regexPicklist;
+            if (!force && picklist.options.length > 0) return;
+            elements.regexStatus.textContent = 'Loading picklist...';
             try {
-                const response = await fetch(`${API_BASE_URL}/regex-files`);
-                if (!response.ok) return;
+                const response = await fetch(`${getApiBaseUrl()}/regex-files`);
+                if (!response.ok) {
+                    elements.regexStatus.textContent = 'Picklist load failed.';
+                    return;
+                }
                 const data = await response.json();
                 if (!data || !data.success || !Array.isArray(data.files)) return;
-                const datalist = document.getElementById('regexPathOptions');
-                datalist.innerHTML = data.files.map(f => `<option value="${escapeHtml(f)}"></option>`).join('');
-                const regexPathInput = document.getElementById('regexPath');
-                if (data.files.includes('regex_patterns.json')) {
-                    regexPathInput.value = 'regex_patterns.json';
-                }
+                populatePicklist(picklist, data.files, 'regex_patterns.json');
+                elements.regexStatus.textContent = data.files.length ? '' : 'No regex files found in project root.';
             } catch (error) {
-                // Ignore regex file discovery errors
+                elements.regexStatus.textContent = 'Picklist load failed.';
             }
         }
 
-        // File input handling
-        const fileInput = document.getElementById('fileInput');
-        const fileInputLabel = document.querySelector('.file-input-label');
-        const fileList = document.getElementById('fileList');
-        const regexFileInput = document.getElementById('regexFile');
-        const lexiconFileInput = document.getElementById('lexiconFile');
-        const regexFileName = document.getElementById('regexFileName');
-        const lexiconFileName = document.getElementById('lexiconFileName');
-        const scanPathInput = document.getElementById('scanPath');
+        async function loadLexiconFiles(force) {
+            const picklist = elements.lexiconPicklist;
+            if (!force && picklist.options.length > 0) return;
+            elements.lexiconStatus.textContent = 'Loading picklist...';
+            try {
+                const response = await fetch(`${getApiBaseUrl()}/lexicon-files`);
+                if (!response.ok) {
+                    elements.lexiconStatus.textContent = 'Picklist load failed.';
+                    return;
+                }
+                const data = await response.json();
+                if (!data || !data.success || !Array.isArray(data.files)) return;
+                populatePicklist(picklist, data.files, 'lexicon_latest.csv');
+                elements.lexiconStatus.textContent = data.files.length ? '' : 'No lexicon CSV files found in project root.';
+            } catch (error) {
+                elements.lexiconStatus.textContent = 'Picklist load failed.';
+            }
+        }
 
-        fileInput.addEventListener('change', handleFileSelect);
-        fileInputLabel.addEventListener('dragover', handleDragOver);
-        fileInputLabel.addEventListener('dragleave', handleDragLeave);
-        fileInputLabel.addEventListener('drop', handleDrop);
-        regexFileInput.addEventListener('change', () => updateOptionalFileName(regexFileInput, regexFileName));
-        lexiconFileInput.addEventListener('change', () => updateOptionalFileName(lexiconFileInput, lexiconFileName));
-        scanPathInput.addEventListener('input', updateScanButtonState);
+        function populatePicklist(selectEl, options, defaultValue) {
+            selectEl.innerHTML = '';
+            const baseOptions = [
+                { value: '', label: 'Select a file...' },
+                { value: '__custom__', label: 'Custom path...' }
+            ];
+            baseOptions.forEach(opt => {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt.value;
+                optionEl.textContent = opt.label;
+                selectEl.appendChild(optionEl);
+            });
+            options.forEach(item => {
+                const optionEl = document.createElement('option');
+                optionEl.value = item;
+                optionEl.textContent = item;
+                selectEl.appendChild(optionEl);
+            });
+
+            const currentValue = selectEl === elements.regexPicklist
+                ? elements.regexPath.value.trim()
+                : elements.lexiconPath.value.trim();
+            const fallbackValue = options.includes(defaultValue) ? defaultValue : (options[0] || '');
+            const targetValue = currentValue || fallbackValue;
+
+            if (targetValue && options.includes(targetValue)) {
+                selectEl.value = targetValue;
+                if (selectEl === elements.regexPicklist) {
+                    elements.regexPath.value = targetValue;
+                } else {
+                    elements.lexiconPath.value = targetValue;
+                }
+            } else {
+                selectEl.value = '__custom__';
+            }
+            updateCurlPreview();
+        }
+
+        function syncPicklistToInput(type) {
+            const selectEl = type === 'regex' ? elements.regexPicklist : elements.lexiconPicklist;
+            const inputEl = type === 'regex' ? elements.regexPath : elements.lexiconPath;
+            if (selectEl.value && selectEl.value !== '__custom__') {
+                inputEl.value = selectEl.value;
+            }
+            updateCurlPreview();
+        }
 
         function handleFileSelect(e) {
-            const files = Array.from(e.target.files);
+            const files = Array.from(e.target.files || []);
             updateFileList(files);
         }
 
         function handleDragOver(e) {
             e.preventDefault();
-            fileInputLabel.classList.add('active');
+            elements.fileDrop.classList.add('active');
         }
 
         function handleDragLeave(e) {
             e.preventDefault();
-            fileInputLabel.classList.remove('active');
+            elements.fileDrop.classList.remove('active');
         }
 
         function handleDrop(e) {
             e.preventDefault();
-            fileInputLabel.classList.remove('active');
-            const files = Array.from(e.dataTransfer.files);
-            
-            // Update file input
+            elements.fileDrop.classList.remove('active');
+            const files = Array.from(e.dataTransfer.files || []);
             const dt = new DataTransfer();
-            files.forEach(f => dt.items.add(f));
-            fileInput.files = dt.files;
-            
+            files.forEach(file => dt.items.add(file));
+            elements.fileInput.files = dt.files;
             updateFileList(files);
         }
 
         function updateFileList(files) {
             state.files = files;
-            
-            let html = '';
-            if (files.length > 0) {
-                html = '<strong>Selected files:</strong><ul style="margin: 8px 0; padding-left: 20px;">';
-                files.forEach(f => {
-                    html += `<li>${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</li>`;
-                });
-                html += '</ul>';
+            if (!files.length) {
+                elements.fileList.textContent = '';
+            } else {
+                elements.fileList.innerHTML = `<strong>Selected:</strong> ${files.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join(', ')}`;
             }
             updateScanButtonState();
-            fileList.innerHTML = html;
+            updateCurlPreview();
         }
 
         function updateOptionalFileName(input, target) {
@@ -726,6 +829,14 @@
             target.textContent = `Selected: ${input.files[0].name}`;
         }
 
+        function updateScanButtonState() {
+            const isUpload = elements.inputSource.value === 'upload';
+            const hasUpload = state.files.length > 0;
+            const hasPath = elements.scanPath.value.trim().length > 0;
+            const canScan = isUpload ? hasUpload : hasPath;
+            elements.scanBtn.disabled = !state.serverConnected || !canScan;
+        }
+
         function generateScanId() {
             if (window.crypto && crypto.randomUUID) {
                 return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
@@ -733,47 +844,43 @@
             return `${Date.now()}${Math.floor(Math.random() * 100000)}`.slice(0, 16);
         }
 
-        function updateProgressUI(percent, currentDocument, status, current, total) {
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
-            const currentFile = document.getElementById('currentFile');
-            const safePercent = Math.min(100, Math.max(0, percent || 0));
-            const isListing = status === 'listing';
-            progressBar.classList.toggle('indeterminate', isListing);
-            if (isListing) {
-                progressBar.style.width = '';
-                progressText.textContent = `Listing files... ${current || 0} found`;
-                currentFile.textContent = '';
-                return;
-            }
-            progressBar.style.width = `${safePercent}%`;
-            if (total > 0) {
-                progressText.textContent = `${safePercent}% complete (${current}/${total})`;
-            } else {
-                progressText.textContent = `${safePercent}% complete`;
-            }
-            currentFile.textContent = currentDocument ? `Current file: ${currentDocument}` : '';
+        function updateProgressUI(payload) {
+            const bar = elements.progressBar;
+            const span = bar.querySelector('span');
+            const percent = Math.min(100, Math.max(0, payload.percent || 0));
+            const isListing = payload.status === 'listing';
+            bar.classList.toggle('indeterminate', isListing);
+            span.style.width = isListing ? '30%' : `${percent}%`;
+            const progressLabel = payload.status === 'complete'
+                ? 'Complete'
+                : payload.status === 'error'
+                    ? 'Error'
+                    : payload.status === 'listing'
+                        ? 'Listing files'
+                        : payload.status === 'running'
+                            ? 'Scanning'
+                            : 'Idle';
+            const count = payload.total ? ` (${payload.current}/${payload.total})` : '';
+            elements.progressText.textContent = `${progressLabel}${count}`;
+            elements.currentFile.textContent = payload.current_document ? `Current: ${payload.current_document}` : '';
         }
 
         function startProgressPolling(scanId) {
             stopProgressPolling();
-            updateProgressUI(0, '');
+            updateProgressUI({ status: 'running', percent: 0, current: 0, total: 0, current_document: '' });
             state.progressTimer = setInterval(async () => {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/progress/${scanId}`);
-                    if (!response.ok) return;
+                    const response = await fetch(`${getApiBaseUrl()}/progress/${scanId}`);
+                    if (!response.ok) {
+                        updateProgressUI({ status: 'running', percent: 0 });
+                        return;
+                    }
                     const data = await response.json();
                     if (data && data.success) {
-                        updateProgressUI(
-                            data.percent || 0,
-                            data.current_document || '',
-                            data.status || '',
-                            data.current || 0,
-                            data.total || 0
-                        );
+                        updateProgressUI(data);
                     }
                 } catch (error) {
-                    // Ignore progress polling errors
+                    updateProgressUI({ status: 'running', percent: 0 });
                 }
             }, 500);
         }
@@ -785,97 +892,29 @@
             }
         }
 
-        function updateScanButtonState() {
-            const scanPath = scanPathInput.value.trim();
-            const hasFilesOrPath = state.files.length > 0 || scanPath.length > 0;
-            document.getElementById('scanBtn').disabled = !state.serverConnected || !hasFilesOrPath;
-        }
-
-        // Scan button
-        document.getElementById('scanBtn').addEventListener('click', performScan);
+        elements.scanBtn.addEventListener('click', performScan);
 
         async function performScan() {
-            const scanPath = document.getElementById('scanPath').value.trim();
+            const isUpload = elements.inputSource.value === 'upload';
+            const scanPath = elements.scanPath.value.trim();
 
-            if (state.files.length === 0 && !scanPath) {
-                showError('Please select at least one file or provide a scan path');
+            if (isUpload && state.files.length === 0) {
+                flashMessage('Please select files or folders to upload.', 'error');
+                return;
+            }
+            if (!isUpload && !scanPath) {
+                flashMessage('Please enter a server path to scan.', 'error');
                 return;
             }
 
-            state.isProcessing = true;
+            const scanId = generateScanId();
+            state.lastScanId = scanId;
+            startProgressPolling(scanId);
             showLoading();
 
             try {
-                const scanId = generateScanId();
-                startProgressPolling(scanId);
-
-                // Prepare form data
-                const formData = new FormData();
-                state.files.forEach(file => {
-                    formData.append('files', file);
-                });
-                formData.append('scan_id', scanId);
-                formData.append('lexicon_path', document.getElementById('lexiconPath').value.trim());
-                formData.append('regex_path', document.getElementById('regexPath').value.trim());
-
-                if (lexiconFileInput.files[0]) {
-                    formData.append('lexicon_file', lexiconFileInput.files[0]);
-                }
-                if (regexFileInput.files[0]) {
-                    formData.append('regex_file', regexFileInput.files[0]);
-                }
-
-                if (scanPath) {
-                    formData.append('path', scanPath);
-                }
-                formData.append('recursive', document.getElementById('recursive').checked);
-
-                const fileTypes = document.getElementById('fileTypes').value.trim();
-                if (fileTypes) {
-                    formData.append('file_types', fileTypes);
-                }
-
-                formData.append('log_stdout', document.getElementById('logStdout').checked);
-
-                const logPath = document.getElementById('logPath').value.trim();
-                if (logPath) {
-                    formData.append('log_path', logPath);
-                }
-
-                formData.append('debug_text', document.getElementById('debugText').checked);
-
-                const debugTextPath = document.getElementById('debugTextPath').value.trim();
-                if (debugTextPath) {
-                    formData.append('debug_text_path', debugTextPath);
-                }
-
-                const regexOutputPath = document.getElementById('regexOutputPath').value.trim();
-                if (regexOutputPath) {
-                    formData.append('regex_output_path', regexOutputPath);
-                }
-
-                const keywordOutputPath = document.getElementById('keywordOutputPath').value.trim();
-                if (keywordOutputPath) {
-                    formData.append('keyword_output_path', keywordOutputPath);
-                }
-
-                const outputPath = document.getElementById('outputPath').value.trim();
-                if (outputPath) {
-                    formData.append('output_path', outputPath);
-                }
-
-                const batchSize = document.getElementById('batchSize').value.trim();
-                if (batchSize) {
-                    formData.append('batch_size', batchSize);
-                }
-
-                const returnLimit = document.getElementById('returnLimit').value.trim();
-                if (returnLimit) {
-                    formData.append('return_limit', returnLimit);
-                }
-
-                // Send to backend
-                const response = await fetch(`${API_BASE_URL}/scan`, {
+                const formData = buildFormData(scanId, isUpload, scanPath);
+                const response = await fetch(`${getApiBaseUrl()}/scan`, {
                     method: 'POST',
                     body: formData
                 });
@@ -896,7 +935,7 @@
                         }
                     }
                     if (response.status === 413) {
-                        message = 'Upload too large. Use a server path scan or reduce file sizes.';
+                        message = 'Upload too large. Use a server path or reduce file sizes.';
                     }
                     throw new Error(message);
                 }
@@ -904,13 +943,82 @@
                 const results = await response.json();
                 state.results = results;
                 displayResults(results);
-
+                updateProgressUI({ status: 'complete', percent: 100, current: results.documents_scanned || 0, total: results.documents_scanned || 0 });
             } catch (error) {
-                showError(error.message || 'Failed to process documents. Check backend server.');
+                updateProgressUI({ status: 'error', percent: 0 });
+                showError(error.message || 'Failed to process documents.');
             } finally {
-                state.isProcessing = false;
                 stopProgressPolling();
             }
+        }
+
+        function buildFormData(scanId, isUpload, scanPath) {
+            const formData = new FormData();
+            if (isUpload) {
+                state.files.forEach(file => formData.append('files', file));
+            } else if (scanPath) {
+                formData.append('path', scanPath);
+            }
+
+            formData.append('scan_id', scanId);
+            formData.append('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
+            formData.append('regex_path', elements.regexPath.value.trim() || 'regex_patterns.json');
+
+            if (elements.lexiconFile.files[0]) {
+                formData.append('lexicon_file', elements.lexiconFile.files[0]);
+            }
+            if (elements.regexFile.files[0]) {
+                formData.append('regex_file', elements.regexFile.files[0]);
+            }
+
+            formData.append('recursive', document.getElementById('recursive').checked);
+
+            const fileTypes = document.getElementById('fileTypes').value.trim();
+            if (fileTypes) {
+                formData.append('file_types', fileTypes);
+            }
+
+            formData.append('log_stdout', document.getElementById('logStdout').checked);
+
+            const logPath = document.getElementById('logPath').value.trim();
+            if (logPath) {
+                formData.append('log_path', logPath);
+            }
+
+            const debugText = document.getElementById('debugText').checked;
+            formData.append('debug_text', debugText);
+
+            const debugTextPath = document.getElementById('debugTextPath').value.trim();
+            if (debugTextPath) {
+                formData.append('debug_text_path', debugTextPath);
+            }
+
+            const regexOutputPath = document.getElementById('regexOutputPath').value.trim();
+            if (regexOutputPath) {
+                formData.append('regex_output_path', regexOutputPath);
+            }
+
+            const keywordOutputPath = document.getElementById('keywordOutputPath').value.trim();
+            if (keywordOutputPath) {
+                formData.append('keyword_output_path', keywordOutputPath);
+            }
+
+            const outputPath = document.getElementById('outputPath').value.trim();
+            if (outputPath) {
+                formData.append('output_path', outputPath);
+            }
+
+            const batchSize = document.getElementById('batchSize').value.trim();
+            if (batchSize) {
+                formData.append('batch_size', batchSize);
+            }
+
+            const returnLimit = document.getElementById('returnLimit').value.trim();
+            if (returnLimit) {
+                formData.append('return_limit', returnLimit);
+            }
+
+            return formData;
         }
 
         function displayResults(results) {
@@ -918,100 +1026,91 @@
             const matchesList = document.getElementById('matchesList');
             const stats = document.getElementById('stats');
             const exportButtons = document.getElementById('exportButtons');
-
             resultsSection.style.display = 'block';
-            document.getElementById('loadingInfo').style.display = 'none';
 
-            // Display errors if any
             if (results.errors && results.errors.length > 0) {
                 const errorDiv = document.getElementById('errorMessage');
-                errorDiv.innerHTML = '⚠️ ' + results.errors.join('<br>');
+                errorDiv.innerHTML = results.errors.join('<br>');
                 errorDiv.style.display = 'block';
             }
 
-            // Stats
             const totalDocuments = results.documents_scanned ?? results.total_documents ?? 0;
             const totalMatches = results.total_matches ?? (results.matches ? results.matches.length : 0);
             stats.innerHTML = `
-                <div class="stat-item">
-                    <div class="stat-label">Documents Processed</div>
-                    <div class="stat-value">${totalDocuments}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Matches Found</div>
-                    <div class="stat-value">${totalMatches}</div>
-                </div>
+                <div class="stat"><span>Documents Processed</span><strong>${totalDocuments}</strong></div>
+                <div class="stat"><span>Matches Found</span><strong>${totalMatches}</strong></div>
             `;
             stats.style.display = 'grid';
 
-            // Matches
-            if (results.matches.length === 0) {
-                matchesList.innerHTML = '<div class="no-results">No matches found</div>';
+            if (!results.matches || results.matches.length === 0) {
+                matchesList.innerHTML = '<div class="helper">No matches found.</div>';
             } else {
-                matchesList.innerHTML = results.matches.map(m => `
-                    <div class="match-result ${m.rejected ? 'muted' : ''}">
-                        <div><strong>Type:</strong> ${escapeHtml(m.type || 'keyword')}</div>
-                        <div><strong>Match:</strong> <span class="match-phrase">${escapeHtml(m.phrase || m.regex_name || m.value || '')}</span></div>
-                        <div><strong>Document:</strong> ${escapeHtml(m.document)}</div>
-                        ${m.nearest_regex ? `<div><strong>Nearest Regex:</strong> ${escapeHtml(m.nearest_regex)} (${m.nearest_regex_distance ?? 'n/a'})</div>` : ''}
-                        ${m.context ? `<div class="match-context"><strong>Context:</strong> "${escapeHtml(m.context)}"</div>` : ''}
-                        ${m.rejected ? '<div style="color: var(--color-warning); font-weight: 500; margin-top: 8px;">⚠️ Matched reject keyword</div>' : ''}
+                matchesList.innerHTML = results.matches.map(match => `
+                    <div class="match ${match.rejected ? 'muted' : ''}">
+                        <div class="match-title">${escapeHtml(match.type || 'keyword').toUpperCase()}</div>
+                        <div><strong>Match:</strong> ${escapeHtml(match.phrase || match.regex_name || match.value || '')}</div>
+                        <div><strong>Document:</strong> ${escapeHtml(match.document || '')}</div>
+                        ${match.nearest_regex ? `<div><strong>Nearest Regex:</strong> ${escapeHtml(match.nearest_regex)} (${match.nearest_regex_distance ?? 'n/a'})</div>` : ''}
+                        ${match.context ? `<small>Context: "${escapeHtml(match.context)}"</small>` : ''}
                     </div>
                 `).join('');
             }
 
-            // Export buttons
             exportButtons.innerHTML = `
-                <button class="btn-primary" onclick="exportResults('json')">📥 Export JSON</button>
-                <button class="btn-secondary" onclick="exportResults('csv')">📥 Export CSV</button>
+                <button class="btn-primary" onclick="exportResults('json')">Export JSON</button>
+                <button class="btn-secondary" onclick="exportResults('csv')">Export CSV</button>
             `;
             exportButtons.style.display = 'flex';
         }
 
         function showLoading() {
             document.getElementById('resultsSection').style.display = 'block';
-            document.getElementById('loadingInfo').style.display = 'block';
-            document.getElementById('stats').style.display = 'none';
-            document.getElementById('matchesList').innerHTML = '';
             document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('successMessage').style.display = 'none';
-            updateProgressUI(0, '', '', 0, 0);
+            document.getElementById('stats').style.display = 'none';
+            document.getElementById('matchesList').innerHTML = '';
+            document.getElementById('exportButtons').style.display = 'none';
         }
 
         function showError(message) {
-            document.getElementById('resultsSection').style.display = 'block';
             const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = '❌ ' + message;
+            errorDiv.textContent = message;
             errorDiv.style.display = 'block';
-            document.getElementById('loadingInfo').style.display = 'none';
+        }
+
+        function flashMessage(message, type) {
+            const target = type === 'success' ? document.getElementById('successMessage') : document.getElementById('errorMessage');
+            target.textContent = message;
+            target.style.display = 'block';
+            setTimeout(() => {
+                target.style.display = 'none';
+            }, 2200);
         }
 
         function exportResults(format) {
             if (!state.results) return;
-
-            const data = state.results.matches;
+            const data = state.results.matches || [];
             let content = '';
-
             if (format === 'json') {
                 content = JSON.stringify(data, null, 2);
                 downloadFile(content, 'results.json', 'application/json');
             } else if (format === 'csv') {
                 content = 'Type,Match,Document,Context,NearestRegex,NearestRegexDistance,Rejected\n';
-                data.forEach(m => {
-                    const matchValue = m.phrase || m.regex_name || m.value || '';
-                    const context = m.context || '';
-                    const nearestRegex = m.nearest_regex || '';
-                    const nearestRegexDistance = m.nearest_regex_distance ?? '';
-                    const type = m.type || 'keyword';
-                    const rejected = m.rejected ?? '';
-                    content += `"${String(type).replace(/"/g, '""')}","${String(matchValue).replace(/"/g, '""')}","${String(m.document || '').replace(/"/g, '""')}","${String(context).replace(/"/g, '""')}","${String(nearestRegex).replace(/"/g, '""')}","${String(nearestRegexDistance).replace(/"/g, '""')}","${String(rejected).replace(/"/g, '""')}"\n`;
+                data.forEach(item => {
+                    const matchValue = item.phrase || item.regex_name || item.value || '';
+                    const context = item.context || '';
+                    const nearestRegex = item.nearest_regex || '';
+                    const nearestRegexDistance = item.nearest_regex_distance ?? '';
+                    const type = item.type || 'keyword';
+                    const rejected = item.rejected ?? '';
+                    content += `"${String(type).replace(/"/g, '""')}","${String(matchValue).replace(/"/g, '""')}","${String(item.document || '').replace(/"/g, '""')}","${String(context).replace(/"/g, '""')}","${String(nearestRegex).replace(/"/g, '""')}","${String(nearestRegexDistance).replace(/"/g, '""')}","${String(rejected).replace(/"/g, '""')}"\n`;
                 });
                 downloadFile(content, 'results.csv', 'text/csv');
             }
         }
 
         function downloadFile(content, filename, type) {
-            const blob = new Blob([content], { type: type });
+            const blob = new Blob([content], { type });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -1022,21 +1121,64 @@
             document.body.removeChild(a);
         }
 
+        function updateCurlPreview() {
+            const apiBase = getApiBaseUrl();
+            const isUpload = elements.inputSource.value === 'upload';
+            const scanId = state.lastScanId || 'scan1234567890abcd';
+            const lines = [
+                `curl -X POST "${apiBase}/scan" \\\n  -F "scan_id=${scanId}"`
+            ];
+
+            if (isUpload) {
+                if (state.files.length) {
+                    state.files.forEach(file => {
+                        lines.push(`  -F "files=@/path/to/${file.name}"`);
+                    });
+                } else {
+                    lines.push('  -F "files=@/path/to/document.pdf"');
+                }
+            } else {
+                const scanPath = elements.scanPath.value.trim() || '/path/to/folder';
+                lines.push(`  -F "path=${scanPath}"`);
+            }
+
+            const addField = (key, value) => {
+                if (value !== '') {
+                    lines.push(`  -F "${key}=${value}"`);
+                }
+            };
+
+            addField('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
+            addField('regex_path', elements.regexPath.value.trim() || 'regex_patterns.json');
+            addField('recursive', document.getElementById('recursive').checked);
+            addField('file_types', document.getElementById('fileTypes').value.trim());
+            addField('log_stdout', document.getElementById('logStdout').checked);
+            addField('log_path', document.getElementById('logPath').value.trim());
+            addField('debug_text', document.getElementById('debugText').checked);
+            addField('debug_text_path', document.getElementById('debugTextPath').value.trim());
+            addField('regex_output_path', document.getElementById('regexOutputPath').value.trim());
+            addField('keyword_output_path', document.getElementById('keywordOutputPath').value.trim());
+            addField('output_path', document.getElementById('outputPath').value.trim());
+            addField('batch_size', document.getElementById('batchSize').value.trim());
+            addField('return_limit', document.getElementById('returnLimit').value.trim());
+
+            elements.curlPreview.value = lines.join(' \\\n');
+        }
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
 
-        // Clear button
-        document.getElementById('clearBtn').addEventListener('click', () => {
-            document.getElementById('fileInput').value = '';
-            document.getElementById('regexFile').value = '';
-            document.getElementById('lexiconFile').value = '';
-            document.getElementById('regexPath').value = 'regex_patterns.json';
-            document.getElementById('lexiconPath').value = 'lexicon_latest.csv';
-            document.getElementById('scanPath').value = '';
-            document.getElementById('fileTypes').value = '';
+        elements.clearBtn.addEventListener('click', () => {
+            elements.fileInput.value = '';
+            elements.regexFile.value = '';
+            elements.lexiconFile.value = '';
+            elements.regexPath.value = 'regex_patterns.json';
+            elements.lexiconPath.value = 'lexicon_latest.csv';
+            elements.scanPath.value = '';
+            document.getElementById('fileTypes').value = 'pdf,docx,xlsx,jpg,jpeg,png,tif,tiff,eml,msg';
             document.getElementById('recursive').checked = true;
             document.getElementById('logStdout').checked = true;
             document.getElementById('debugText').checked = false;
@@ -1047,14 +1189,15 @@
             document.getElementById('outputPath').value = '';
             document.getElementById('batchSize').value = '500';
             document.getElementById('returnLimit').value = '0';
-            document.getElementById('resultsSection').style.display = 'none';
             state.files = [];
             state.results = null;
-            fileList.innerHTML = '';
-            regexFileName.textContent = '';
-            lexiconFileName.textContent = '';
-            document.getElementById('scanBtn').disabled = !state.serverConnected;
-            updateProgressUI(0, '', '', 0, 0);
+            elements.fileList.textContent = '';
+            elements.regexFileName.textContent = '';
+            elements.lexiconFileName.textContent = '';
+            updateProgressUI({ status: 'idle', percent: 0, current: 0, total: 0, current_document: '' });
+            document.getElementById('resultsSection').style.display = 'none';
+            updateScanButtonState();
+            updateCurlPreview();
         });
     </script>
 </body>
