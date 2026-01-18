@@ -1,5 +1,4 @@
-[
-  
+[  
   {
     "name": "australia_passport_number_latest",
     "pattern": "(?i)(issuing|DOCUMENT No.|PASSPORT|birth|AUSTRALIA|Authority)[\\s\\S]{0,200}(?:P[A-E]|RA|N)[0-9]{7}\\b|(?:P[A-E]|RA|N)[0-9]{7}\\b[\\s\\S]{0,200}(PASSPORT|DOCUMENT|birth|AUSTRALIA|Authority|issuing)"
@@ -11,9 +10,9 @@
 {
     "name": "australia_vic_licence_front",
     "pattern": "(?i)\\bDRIVER\\b[\\s\\S]*?\\bLICENCE\\b[\\s\\S]*?\\bVICTORIA\\b[\\s\\S]*?\\bAUSTRALIA\\b[\\s\\S]*?\\bEXPIRY\\b"
+  },
+{
+    "name": "temp_harwood",
+    "pattern": "(?i)(robert[\\s\\S]{0,30}harwood|harwood[\\s\\S]{0,30}robert)"
   }
-
-
-
-  
 ]

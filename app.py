@@ -268,6 +268,11 @@ def extract_text_from_msg_path(path, depth):
                 if not filename:
                     continue
                 saved_path = attachment.save(customPath=tmpdir)
+                if isinstance(saved_path, (tuple, list)):
+                    saved_path = next(
+                        (item for item in saved_path if isinstance(item, (str, bytes))),
+                        None,
+                    )
                 if saved_path:
                     parts.append(
                         extract_text_from_file_path(
@@ -340,8 +345,24 @@ def scan():
     log_to_stdout = request.form.get("log_stdout", "true").lower() == "true"
     debug_text = request.form.get("debug_text", "false").lower() == "true"
     debug_text_path = request.form.get("debug_text_path")
-    regex_output_path = request.form.get("regex_output_path") or "regex_matches.csv"
-    keyword_output_path = request.form.get("keyword_output_path") or "keyword_matches.csv"
+    def normalize_output_path(value, default):
+        if value is None:
+            return default
+        value = value.strip()
+        if not value:
+            return default
+        if value.lower() in {"none", "null", "false"}:
+            return None
+        return value
+
+    regex_output_path = normalize_output_path(
+        request.form.get("regex_output_path"),
+        "regex_matches.csv",
+    )
+    keyword_output_path = normalize_output_path(
+        request.form.get("keyword_output_path"),
+        "keyword_matches.csv",
+    )
     allowed_exts = parse_file_types(request.form.get("file_types"))
     output_path = request.form.get("output_path")
     batch_size = int(request.form.get("batch_size", "500"))
@@ -516,6 +537,8 @@ def scan():
     regex_patterns = load_regex_patterns(regex_path)
     # Keep debug_text focused on extracted document text only.
 
+    warned_regex_csv_disabled = False
+
     output_file = None
     if output_path:
         output_file = open(output_path, "a", encoding="utf-8")
@@ -603,6 +626,9 @@ def scan():
                         })
 
             logged_file = False
+            if regex_hits and not regex_csv_writer and not warned_regex_csv_disabled:
+                log("warning: regex_output_path disabled; regex CSV not written")
+                warned_regex_csv_disabled = True
             for r in regex_hits:
                 if not logged_file:
                     log(f"matched_file: {document}")
