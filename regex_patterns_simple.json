@@ -10,9 +10,5 @@
 {
     "name": "australia_vic_licence_front",
     "pattern": "(?i)\\bDRIVER\\b[\\s\\S]*?\\bLICENCE\\b[\\s\\S]*?\\bVICTORIA\\b[\\s\\S]*?\\bAUSTRALIA\\b[\\s\\S]*?\\bEXPIRY\\b"
-  },
-{
-    "name": "temp_harwood",
-    "pattern": "(?i)(robert[\\s\\S]{0,30}harwood|harwood[\\s\\S]{0,30}robert)"
   }
 ]
