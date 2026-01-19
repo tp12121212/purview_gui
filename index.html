@@ -434,7 +434,10 @@
             border-radius: 10px;
             font-family: "Courier New", monospace;
             font-size: 12px;
-            white-space: pre-wrap;
+            white-space: pre;
+            width: 100%;
+            min-height: 160px;
+            resize: vertical;
         }
 
         .curl-preview {
@@ -561,6 +564,30 @@
                             <input type="text" id="rulePackName" value="CustomRulePack">
                         </div>
                     </div>
+                    <div class="input-block">
+                        <label for="rulePackFile">Rule Pack XML (optional)</label>
+                        <div class="helper">Upload an existing rule pack XML to update or append a SIT.</div>
+                        <div style="margin-top: 8px;">
+                            <input type="file" id="rulePackFile" accept=".xml,application/xml,text/xml">
+                            <div id="rulePackFileName" class="helper"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="input-block">
+                            <label for="rulePackMode">Rule Pack Action</label>
+                            <select id="rulePackMode">
+                                <option value="new">Create new SIT in rule pack</option>
+                                <option value="update">Update existing SIT in rule pack</option>
+                            </select>
+                            <div class="helper">Use "update" to replace regexes in an existing SIT with the same name.</div>
+                        </div>
+                        <div class="input-block">
+                            <label>Versioning</label>
+                            <div class="checkboxes">
+                                <label><input type="checkbox" id="incrementRulePackVersion" checked> Increment rule pack version</label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -651,9 +678,16 @@
             <div id="sitOutputs" class="input-block hidden">
                 <h3>Custom SIT Output</h3>
                 <label for="sitXml">Rule Pack XML</label>
-                <pre id="sitXml" class="code-block"></pre>
+                <textarea id="sitXml" class="code-block" readonly></textarea>
+                <div class="buttons" style="margin-top: 8px;">
+                    <button class="btn-secondary" id="copySitXml">Copy XML</button>
+                    <button class="btn-secondary" id="downloadSitXml">Download XML</button>
+                </div>
                 <label for="sitScript" style="margin-top: 12px;">PowerShell Import Script</label>
-                <pre id="sitScript" class="code-block"></pre>
+                <textarea id="sitScript" class="code-block" readonly></textarea>
+                <div class="buttons" style="margin-top: 8px;">
+                    <button class="btn-secondary" id="copySitScript">Copy PowerShell</button>
+                </div>
             </div>
             <div id="exportButtons" class="export" style="display: none;"></div>
         </div>
@@ -696,6 +730,10 @@
             sitDescription: document.getElementById('sitDescription'),
             sitPublisher: document.getElementById('sitPublisher'),
             rulePackName: document.getElementById('rulePackName'),
+            rulePackFile: document.getElementById('rulePackFile'),
+            rulePackFileName: document.getElementById('rulePackFileName'),
+            rulePackMode: document.getElementById('rulePackMode'),
+            incrementRulePackVersion: document.getElementById('incrementRulePackVersion'),
             scanBtn: document.getElementById('scanBtn'),
             clearBtn: document.getElementById('clearBtn'),
             progressWrap: document.getElementById('progressWrap'),
@@ -703,7 +741,10 @@
             progressText: document.getElementById('progressText'),
             currentFile: document.getElementById('currentFile'),
             curlPreview: document.getElementById('curlPreview'),
-            copyCurl: document.getElementById('copyCurl')
+            copyCurl: document.getElementById('copyCurl'),
+            copySitXml: document.getElementById('copySitXml'),
+            copySitScript: document.getElementById('copySitScript'),
+            downloadSitXml: document.getElementById('downloadSitXml')
         };
 
         window.addEventListener('load', () => {
@@ -746,6 +787,7 @@
 
         elements.regexFile.addEventListener('change', () => updateOptionalFileName(elements.regexFile, elements.regexFileName));
         elements.lexiconFile.addEventListener('change', () => updateOptionalFileName(elements.lexiconFile, elements.lexiconFileName));
+        elements.rulePackFile.addEventListener('change', () => updateOptionalFileName(elements.rulePackFile, elements.rulePackFileName));
         elements.refreshLists.addEventListener('click', () => loadPicklists(true));
         elements.regexPicklist.addEventListener('change', () => syncPicklistToInput('regex'));
         elements.lexiconPicklist.addEventListener('change', () => syncPicklistToInput('lexicon'));
@@ -769,13 +811,34 @@
             }
         });
 
-        elements.copyCurl.addEventListener('click', async () => {
+        async function copyToClipboard(value, successMessage) {
             try {
-                await navigator.clipboard.writeText(elements.curlPreview.value);
-                flashMessage('Curl command copied.', 'success');
+                await navigator.clipboard.writeText(value);
+                flashMessage(successMessage, 'success');
             } catch (error) {
-                flashMessage('Unable to copy curl command.', 'error');
+                flashMessage('Unable to copy to clipboard.', 'error');
             }
+        }
+
+        elements.copyCurl.addEventListener('click', () => {
+            copyToClipboard(elements.curlPreview.value, 'Curl command copied.');
+        });
+
+        elements.copySitXml.addEventListener('click', () => {
+            copyToClipboard(document.getElementById('sitXml').value, 'Rule pack XML copied.');
+        });
+
+        elements.copySitScript.addEventListener('click', () => {
+            copyToClipboard(document.getElementById('sitScript').value, 'PowerShell script copied.');
+        });
+
+        elements.downloadSitXml.addEventListener('click', () => {
+            const xmlValue = document.getElementById('sitXml').value || '';
+            if (!xmlValue.trim()) {
+                flashMessage('No rule pack XML to download.', 'error');
+                return;
+            }
+            downloadFile(xmlValue, `${elements.rulePackName.value.trim() || 'CustomRulePack'}.xml`, 'application/xml');
         });
 
         function getApiBaseUrl() {
@@ -1188,6 +1251,11 @@
                 formData.append('sit_description', elements.sitDescription.value.trim());
                 formData.append('sit_publisher', elements.sitPublisher.value.trim());
                 formData.append('rule_pack_name', elements.rulePackName.value.trim());
+                formData.append('rule_pack_mode', elements.rulePackMode.value);
+                formData.append('increment_rule_pack_version', elements.incrementRulePackVersion.checked);
+                if (elements.rulePackFile.files[0]) {
+                    formData.append('rule_pack_file', elements.rulePackFile.files[0]);
+                }
             }
 
             return formData;
@@ -1232,12 +1300,12 @@
             }
 
             if (results.sit_outputs && results.sit_outputs.rule_pack_xml) {
-                sitXml.textContent = results.sit_outputs.rule_pack_xml;
-                sitScript.textContent = results.sit_outputs.powershell_script || '';
+                sitXml.value = results.sit_outputs.rule_pack_xml;
+                sitScript.value = results.sit_outputs.powershell_script || '';
                 sitOutputs.classList.remove('hidden');
             } else {
-                sitXml.textContent = '';
-                sitScript.textContent = '';
+                sitXml.value = '';
+                sitScript.value = '';
                 sitOutputs.classList.add('hidden');
             }
 
@@ -1356,6 +1424,11 @@
                 addField('sit_description', elements.sitDescription.value.trim());
                 addField('sit_publisher', elements.sitPublisher.value.trim());
                 addField('rule_pack_name', elements.rulePackName.value.trim());
+                addField('rule_pack_mode', elements.rulePackMode.value);
+                addField('increment_rule_pack_version', elements.incrementRulePackVersion.checked);
+                if (elements.rulePackFile.files.length) {
+                    lines.push('  -F "rule_pack_file=@/path/to/rulepack.xml"');
+                }
             }
 
             elements.curlPreview.value = lines.join(' \\\n');
@@ -1371,6 +1444,7 @@
             elements.fileInput.value = '';
             elements.regexFile.value = '';
             elements.lexiconFile.value = '';
+            elements.rulePackFile.value = '';
             elements.regexPath.value = 'regex_patterns.json';
             elements.lexiconPath.value = 'lexicon_latest.csv';
             elements.scanPath.value = '';
@@ -1390,11 +1464,14 @@
             elements.fileList.textContent = '';
             elements.regexFileName.textContent = '';
             elements.lexiconFileName.textContent = '';
+            elements.rulePackFileName.textContent = '';
             document.querySelector('input[name="scenarioMode"][value="sit"]').checked = true;
             elements.sitName.value = '';
             elements.sitDescription.value = '';
             elements.sitPublisher.value = 'Purview Custom';
             elements.rulePackName.value = 'CustomRulePack';
+            elements.rulePackMode.value = 'new';
+            elements.incrementRulePackVersion.checked = true;
             updateProgressUI({ status: 'idle', percent: 0, current: 0, total: 0, current_document: '' });
             document.getElementById('resultsSection').style.display = 'none';
             updateScenarioUI();
