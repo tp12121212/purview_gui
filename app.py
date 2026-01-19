@@ -153,13 +153,45 @@ def iter_scan_items(files, scan_path: str, recursive: bool, allowed_exts):
 
 def extract_text_from_pdf(path):
     text = ""
-    with open(path, "rb") as f:
-        reader = PyPDF2.PdfReader(f)
-        for page in reader.pages:
-            text += page.extract_text() or ""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", category=PyPDF2.errors.PdfReadWarning)
+        with open(path, "rb") as f:
+            reader = PyPDF2.PdfReader(f)
+            for page in reader.pages:
+                text += page.extract_text() or ""
+    seen_messages = set()
+    for warning in caught:
+        message = str(warning.message)
+        if message in seen_messages:
+            continue
+        seen_messages.add(message)
+        print(f"PdfReadWarning [{Path(path)}]: {message}")
+
+    def is_garbled_text(value: str) -> bool:
+        sample = value[:8000]
+        if len(sample) < 200:
+            return False
+        tokens = re.findall(r"\S+", sample)
+        if not tokens:
+            return False
+        weird_token_count = 0
+        for token in tokens:
+            if re.search(r"[\\^`\\[\\]{}]", token):
+                weird_token_count += 1
+                continue
+            if re.search(r"[^A-Za-z0-9.,;:'\"()\\/&%$@#!?\-]", token):
+                weird_token_count += 1
+        if (weird_token_count / len(tokens)) > 0.15:
+            return True
+        weird_chars = sum(1 for ch in sample if ch in "\\[]{}^`")
+        return (weird_chars / len(sample)) > 0.01
+
+    if text.strip() and not is_garbled_text(text):
+        return text
 
     if text.strip():
-        return text
+        print(f"PDF OCR fallback [{Path(path)}]: garbled_text")
+        text = ""
 
     images = convert_from_path(path)
     for img in images:
