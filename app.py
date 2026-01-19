@@ -49,6 +49,7 @@ warnings.filterwarnings(
 DEFAULT_LEXICON_PATH = "lexicon_latest.csv"
 REGEX_PATTERNS_PATH = "regex_patterns.json"
 PROGRESS_DIR = Path(tempfile.gettempdir()) / "purview_scan_progress"
+MAX_SIT_FILES = 50
 
 SUPPORTED_EXTENSIONS = {
     ".pdf", ".docx", ".xlsx",
@@ -370,6 +371,7 @@ def nearest_regex_info(start, end, regex_hits):
 def scan():
     lexicon_path = request.form.get("lexicon_path", DEFAULT_LEXICON_PATH)
     regex_path = request.form.get("regex_path", REGEX_PATTERNS_PATH)
+    scenario_mode = request.form.get("scenario_mode", "sit").strip().lower()
     scan_id = request.form.get("scan_id")
     scan_path = request.form.get("path")
     recursive = request.form.get("recursive", "true").lower() == "true"
@@ -395,6 +397,8 @@ def scan():
         request.form.get("keyword_output_path"),
         "keyword_matches.csv",
     )
+    if scenario_mode == "scan_only":
+        keyword_output_path = None
     allowed_exts = parse_file_types(request.form.get("file_types"))
     output_path = request.form.get("output_path")
     batch_size = int(request.form.get("batch_size", "500"))
@@ -404,6 +408,12 @@ def scan():
         lexicon_path = DEFAULT_LEXICON_PATH
     if not regex_path:
         regex_path = REGEX_PATTERNS_PATH
+
+    if scenario_mode not in {"sit", "scan_only"}:
+        return jsonify({
+            "success": False,
+            "error": "scenario_mode must be 'sit' or 'scan_only'"
+        }), 400
 
     progress_path = None
     if scan_id and re.fullmatch(r"[A-Za-z0-9_-]{6,64}", scan_id):
@@ -490,6 +500,20 @@ def scan():
                 "current_document": f"Found {listing_count} files..."
             })
     total_documents = listing_count
+    if scenario_mode == "sit" and (total_documents == 0 or total_documents > MAX_SIT_FILES):
+        write_progress({
+            "status": "error",
+            "error": f"Scenario 1 requires 1-{MAX_SIT_FILES} files. Found {total_documents}."
+        })
+        cleanup_temp_files()
+        if log_file:
+            log_file.close()
+        if debug_file:
+            debug_file.close()
+        return jsonify({
+            "success": False,
+            "error": f"Scenario 1 requires 1-{MAX_SIT_FILES} files. Found {total_documents}."
+        }), 400
     write_progress({
         "status": "running" if total_documents > 0 else "complete",
         "current": 0,
@@ -517,7 +541,7 @@ def scan():
 
     keyword_csv_file = None
     keyword_csv_writer = None
-    if keyword_output_path:
+    if keyword_output_path and scenario_mode == "sit":
         keyword_csv_file = open(keyword_output_path, "a", encoding="utf-8", newline="")
         keyword_csv_writer = csv.DictWriter(
             keyword_csv_file,
@@ -564,12 +588,53 @@ def scan():
             "error": f"regex_path not found: {regex_path}"
         }), 400
 
-    keywords = load_keywords(lexicon_path)
-    keyword_set = set(keywords)
+    keywords = []
+    keyword_set = set()
+    if scenario_mode == "sit":
+        keywords = load_keywords(lexicon_path)
+        keyword_set = set(keywords)
     regex_patterns = load_regex_patterns(regex_path)
     # Keep debug_text focused on extracted document text only.
 
     warned_regex_csv_disabled = False
+    sit_outputs = None
+    if scenario_mode == "sit":
+        sit_outputs = {
+            "sit_name": request.form.get("sit_name", "").strip() or "Custom SIT",
+            "sit_description": request.form.get("sit_description", "").strip(),
+            "sit_publisher": request.form.get("sit_publisher", "").strip() or "Purview Custom",
+            "rule_pack_name": request.form.get("rule_pack_name", "").strip() or "CustomRulePack",
+        }
+        regex_xml_entries = []
+        for r in regex_patterns:
+            regex_name = html_lib.escape(r.get("name", "Regex"))
+            regex_pattern = html_lib.escape(r.get("pattern", ""))
+            regex_xml_entries.append(
+                f'    <Regex name="{regex_name}" pattern="{regex_pattern}" />'
+            )
+        regex_xml = "\n".join(regex_xml_entries) if regex_xml_entries else "    <!-- No regex patterns found -->"
+        sit_outputs["rule_pack_xml"] = (
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            "<RulePack>\n"
+            f"  <RulePackInfo name=\"{html_lib.escape(sit_outputs['rule_pack_name'])}\" "
+            f"publisher=\"{html_lib.escape(sit_outputs['sit_publisher'])}\" />\n"
+            "  <SensitiveInformationTypes>\n"
+            f"    <SensitiveInformationType name=\"{html_lib.escape(sit_outputs['sit_name'])}\">\n"
+            f"      <Description>{html_lib.escape(sit_outputs['sit_description'])}</Description>\n"
+            "      <Regexes>\n"
+            f"{regex_xml}\n"
+            "      </Regexes>\n"
+            "    </SensitiveInformationType>\n"
+            "  </SensitiveInformationTypes>\n"
+            "</RulePack>\n"
+        )
+        sit_outputs["powershell_script"] = (
+            "$rulePackPath = \"./"
+            + sit_outputs["rule_pack_name"]
+            + ".xml\"\n"
+            "Write-Host \"Importing rule pack: $rulePackPath\"\n"
+            "Write-Host \"Run the appropriate Purview import cmdlet for your environment.\"\n"
+        )
 
     output_file = None
     if output_path:
@@ -640,7 +705,7 @@ def scan():
             # Keyword hits (strict), only after a regex match exists
             # -------------------------
             keyword_hits = []
-            if regex_hits:
+            if regex_hits and scenario_mode == "sit":
                 token_iter = list(re.finditer(r"[A-Za-z0-9]+", text))
                 for idx in range(len(token_iter) - 1):
                     first = token_iter[idx]
@@ -754,6 +819,8 @@ def scan():
 
     return jsonify({
         "success": True,
+        "scenario_mode": scenario_mode,
+        "sit_outputs": sit_outputs,
         "documents_scanned": documents_scanned,
         "total_matches": total_matches,
         "matches": results,
@@ -824,4 +891,5 @@ def progress(scan_id):
 
 if __name__ == "__main__":
     print("Starting Document Scanner Backend Server...")
-    app.run(debug=True, use_reloader=False)
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(debug=True, use_reloader=False, port=port)

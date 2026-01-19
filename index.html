@@ -388,6 +388,55 @@
             margin-top: 12px;
         }
 
+        .scenario-toggle {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .scenario-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            cursor: pointer;
+            background: #f8f4eb;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .scenario-card.active {
+            border-color: var(--accent);
+            background: #eef9fb;
+        }
+
+        .scenario-card strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .scenario-card span {
+            display: block;
+            font-size: 12px;
+            color: var(--ink-muted);
+            line-height: 1.4;
+        }
+
+        .config-muted {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 10px;
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
         .curl-preview {
             width: 100%;
             min-height: 120px;
@@ -414,6 +463,23 @@
         <div class="grid">
             <div>
                 <div class="card">
+                    <h2>Scenario</h2>
+                    <div class="info">Select the scenario to expose the right scanning features and outputs.</div>
+                    <div class="scenario-toggle" id="scenarioToggle">
+                        <label class="scenario-card active">
+                            <input type="radio" name="scenarioMode" value="sit" checked hidden>
+                            <strong>Scenario 1: Custom SIT builder</strong>
+                            <span>Scan 1–50 related files to generate a single custom SIT XML and PowerShell import script.</span>
+                        </label>
+                        <label class="scenario-card">
+                            <input type="radio" name="scenarioMode" value="scan_only" hidden>
+                            <strong>Scenario 2: Regex-only scanning</strong>
+                            <span>Scan large datasets using regex patterns only (no keyword correlation).</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
                     <h2>Input Source</h2>
                     <div class="input-block">
                         <label for="apiBaseUrl">Backend URL</label>
@@ -429,7 +495,7 @@
                     </div>
                     <div id="uploadSection" class="input-block">
                         <label>Upload Files / Folders</label>
-                        <div class="info">Supported: PDF, DOCX, XLSX, JPG, PNG, TIFF, EML, MSG</div>
+                        <div class="info" id="fileLimitInfo">Scenario 1 supports 1–50 files. Supported: PDF, DOCX, XLSX, JPG, PNG, TIFF, EML, MSG</div>
                         <div class="file-drop" id="fileDrop">
                             Click to browse or drag files and folders here
                             <small>Folder uploads use the browser picker; drag-drop folders may not work in all browsers.</small>
@@ -446,6 +512,7 @@
 
                 <div class="card">
                     <h2>Detection Files</h2>
+                    <div class="info" id="detectionInfo">Scenario 1 uses regex + lexicon keyword correlation.</div>
                     <div class="input-block">
                         <label for="regexPath">Regex Patterns (JSON)</label>
                         <select id="regexPicklist"></select>
@@ -473,6 +540,29 @@
             </div>
 
             <div>
+                <div class="card" id="sitConfigCard">
+                    <h2>Custom SIT Details</h2>
+                    <div class="info">These values are used to draft the XML rule pack and PowerShell import script.</div>
+                    <div class="input-block">
+                        <label for="sitName">SIT Name</label>
+                        <input type="text" id="sitName" placeholder="Contoso Contracts">
+                    </div>
+                    <div class="input-block">
+                        <label for="sitDescription">SIT Description</label>
+                        <textarea id="sitDescription" rows="3" placeholder="Custom SIT for contract documents."></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="input-block">
+                            <label for="sitPublisher">Publisher</label>
+                            <input type="text" id="sitPublisher" value="Purview Custom">
+                        </div>
+                        <div class="input-block">
+                            <label for="rulePackName">Rule Pack Name</label>
+                            <input type="text" id="rulePackName" value="CustomRulePack">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card">
                     <h2>Scan Options</h2>
                     <div class="row">
@@ -558,6 +648,13 @@
             <div id="successMessage" class="message success"></div>
             <div id="stats" class="stats" style="display: none;"></div>
             <div id="matchesList"></div>
+            <div id="sitOutputs" class="input-block hidden">
+                <h3>Custom SIT Output</h3>
+                <label for="sitXml">Rule Pack XML</label>
+                <pre id="sitXml" class="code-block"></pre>
+                <label for="sitScript" style="margin-top: 12px;">PowerShell Import Script</label>
+                <pre id="sitScript" class="code-block"></pre>
+            </div>
             <div id="exportButtons" class="export" style="display: none;"></div>
         </div>
     </div>
@@ -591,6 +688,14 @@
             regexStatus: document.getElementById('regexStatus'),
             lexiconStatus: document.getElementById('lexiconStatus'),
             refreshLists: document.getElementById('refreshLists'),
+            scenarioToggle: document.getElementById('scenarioToggle'),
+            fileLimitInfo: document.getElementById('fileLimitInfo'),
+            detectionInfo: document.getElementById('detectionInfo'),
+            sitConfigCard: document.getElementById('sitConfigCard'),
+            sitName: document.getElementById('sitName'),
+            sitDescription: document.getElementById('sitDescription'),
+            sitPublisher: document.getElementById('sitPublisher'),
+            rulePackName: document.getElementById('rulePackName'),
             scanBtn: document.getElementById('scanBtn'),
             clearBtn: document.getElementById('clearBtn'),
             progressWrap: document.getElementById('progressWrap'),
@@ -618,6 +723,12 @@
             const isUpload = source === 'upload';
             elements.uploadSection.classList.toggle('hidden', !isUpload);
             elements.pathSection.classList.toggle('hidden', isUpload);
+            updateScanButtonState();
+            updateCurlPreview();
+        });
+
+        elements.scenarioToggle.addEventListener('change', () => {
+            updateScenarioUI();
             updateScanButtonState();
             updateCurlPreview();
         });
@@ -811,11 +922,21 @@
         }
 
         function updateFileList(files) {
-            state.files = files;
-            if (!files.length) {
+            const mode = getScenarioMode();
+            let normalizedFiles = files;
+            if (mode === 'sit' && files.length > 50) {
+                flashMessage('Scenario 1 supports up to 50 files. Only the first 50 were kept.', 'error');
+                normalizedFiles = files.slice(0, 50);
+                const dt = new DataTransfer();
+                normalizedFiles.forEach(file => dt.items.add(file));
+                elements.fileInput.files = dt.files;
+            }
+
+            state.files = normalizedFiles;
+            if (!state.files.length) {
                 elements.fileList.textContent = '';
             } else {
-                elements.fileList.innerHTML = `<strong>Selected:</strong> ${files.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join(', ')}`;
+                elements.fileList.innerHTML = `<strong>Selected:</strong> ${state.files.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join(', ')}`;
             }
             updateScanButtonState();
             updateCurlPreview();
@@ -835,6 +956,44 @@
             const hasPath = elements.scanPath.value.trim().length > 0;
             const canScan = isUpload ? hasUpload : hasPath;
             elements.scanBtn.disabled = !state.serverConnected || !canScan;
+        }
+
+        function getScenarioMode() {
+            const checked = document.querySelector('input[name="scenarioMode"]:checked');
+            return checked ? checked.value : 'sit';
+        }
+
+        function updateScenarioUI() {
+            const mode = getScenarioMode();
+            const scenarioCards = elements.scenarioToggle.querySelectorAll('.scenario-card');
+            scenarioCards.forEach(card => {
+                const input = card.querySelector('input');
+                card.classList.toggle('active', input && input.checked);
+            });
+
+            const isSit = mode === 'sit';
+            elements.sitConfigCard.classList.toggle('hidden', !isSit);
+            elements.fileLimitInfo.textContent = isSit
+                ? 'Scenario 1 supports 1–50 files. Supported: PDF, DOCX, XLSX, JPG, PNG, TIFF, EML, MSG'
+                : 'Scenario 2 supports large batches. Supported: PDF, DOCX, XLSX, JPG, PNG, TIFF, EML, MSG';
+            elements.detectionInfo.textContent = isSit
+                ? 'Scenario 1 uses regex + lexicon keyword correlation.'
+                : 'Scenario 2 uses regex-only scanning (no keyword correlation).';
+
+            const lexiconInputs = [
+                elements.lexiconPicklist,
+                elements.lexiconPath,
+                elements.lexiconFile,
+                elements.lexiconFileName,
+                document.getElementById('keywordOutputPath')
+            ];
+            lexiconInputs.forEach(input => {
+                if (!input) return;
+                if ('disabled' in input) {
+                    input.disabled = !isSit;
+                }
+                input.classList.toggle('config-muted', !isSit);
+            });
         }
 
         function generateScanId() {
@@ -960,11 +1119,15 @@
                 formData.append('path', scanPath);
             }
 
+            const scenarioMode = getScenarioMode();
             formData.append('scan_id', scanId);
-            formData.append('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
+            formData.append('scenario_mode', scenarioMode);
+            if (scenarioMode === 'sit') {
+                formData.append('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
+            }
             formData.append('regex_path', elements.regexPath.value.trim() || 'regex_patterns.json');
 
-            if (elements.lexiconFile.files[0]) {
+            if (scenarioMode === 'sit' && elements.lexiconFile.files[0]) {
                 formData.append('lexicon_file', elements.lexiconFile.files[0]);
             }
             if (elements.regexFile.files[0]) {
@@ -998,9 +1161,11 @@
                 formData.append('regex_output_path', regexOutputPath);
             }
 
-            const keywordOutputPath = document.getElementById('keywordOutputPath').value.trim();
-            if (keywordOutputPath) {
-                formData.append('keyword_output_path', keywordOutputPath);
+            if (scenarioMode === 'sit') {
+                const keywordOutputPath = document.getElementById('keywordOutputPath').value.trim();
+                if (keywordOutputPath) {
+                    formData.append('keyword_output_path', keywordOutputPath);
+                }
             }
 
             const outputPath = document.getElementById('outputPath').value.trim();
@@ -1018,6 +1183,13 @@
                 formData.append('return_limit', returnLimit);
             }
 
+            if (scenarioMode === 'sit') {
+                formData.append('sit_name', elements.sitName.value.trim());
+                formData.append('sit_description', elements.sitDescription.value.trim());
+                formData.append('sit_publisher', elements.sitPublisher.value.trim());
+                formData.append('rule_pack_name', elements.rulePackName.value.trim());
+            }
+
             return formData;
         }
 
@@ -1026,6 +1198,9 @@
             const matchesList = document.getElementById('matchesList');
             const stats = document.getElementById('stats');
             const exportButtons = document.getElementById('exportButtons');
+            const sitOutputs = document.getElementById('sitOutputs');
+            const sitXml = document.getElementById('sitXml');
+            const sitScript = document.getElementById('sitScript');
             resultsSection.style.display = 'block';
 
             if (results.errors && results.errors.length > 0) {
@@ -1054,6 +1229,16 @@
                         ${match.context ? `<small>Context: "${escapeHtml(match.context)}"</small>` : ''}
                     </div>
                 `).join('');
+            }
+
+            if (results.sit_outputs && results.sit_outputs.rule_pack_xml) {
+                sitXml.textContent = results.sit_outputs.rule_pack_xml;
+                sitScript.textContent = results.sit_outputs.powershell_script || '';
+                sitOutputs.classList.remove('hidden');
+            } else {
+                sitXml.textContent = '';
+                sitScript.textContent = '';
+                sitOutputs.classList.add('hidden');
             }
 
             exportButtons.innerHTML = `
@@ -1125,8 +1310,9 @@
             const apiBase = getApiBaseUrl();
             const isUpload = elements.inputSource.value === 'upload';
             const scanId = state.lastScanId || 'scan1234567890abcd';
+            const scenarioMode = getScenarioMode();
             const lines = [
-                `curl -X POST "${apiBase}/scan" \\\n  -F "scan_id=${scanId}"`
+                `curl -X POST "${apiBase}/scan" \\\n  -F "scan_id=${scanId}" \\\n  -F "scenario_mode=${scenarioMode}"`
             ];
 
             if (isUpload) {
@@ -1148,7 +1334,9 @@
                 }
             };
 
-            addField('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
+            if (scenarioMode === 'sit') {
+                addField('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
+            }
             addField('regex_path', elements.regexPath.value.trim() || 'regex_patterns.json');
             addField('recursive', document.getElementById('recursive').checked);
             addField('file_types', document.getElementById('fileTypes').value.trim());
@@ -1157,10 +1345,18 @@
             addField('debug_text', document.getElementById('debugText').checked);
             addField('debug_text_path', document.getElementById('debugTextPath').value.trim());
             addField('regex_output_path', document.getElementById('regexOutputPath').value.trim());
-            addField('keyword_output_path', document.getElementById('keywordOutputPath').value.trim());
+            if (scenarioMode === 'sit') {
+                addField('keyword_output_path', document.getElementById('keywordOutputPath').value.trim());
+            }
             addField('output_path', document.getElementById('outputPath').value.trim());
             addField('batch_size', document.getElementById('batchSize').value.trim());
             addField('return_limit', document.getElementById('returnLimit').value.trim());
+            if (scenarioMode === 'sit') {
+                addField('sit_name', elements.sitName.value.trim());
+                addField('sit_description', elements.sitDescription.value.trim());
+                addField('sit_publisher', elements.sitPublisher.value.trim());
+                addField('rule_pack_name', elements.rulePackName.value.trim());
+            }
 
             elements.curlPreview.value = lines.join(' \\\n');
         }
@@ -1194,11 +1390,19 @@
             elements.fileList.textContent = '';
             elements.regexFileName.textContent = '';
             elements.lexiconFileName.textContent = '';
+            document.querySelector('input[name="scenarioMode"][value="sit"]').checked = true;
+            elements.sitName.value = '';
+            elements.sitDescription.value = '';
+            elements.sitPublisher.value = 'Purview Custom';
+            elements.rulePackName.value = 'CustomRulePack';
             updateProgressUI({ status: 'idle', percent: 0, current: 0, total: 0, current_document: '' });
             document.getElementById('resultsSection').style.display = 'none';
+            updateScenarioUI();
             updateScanButtonState();
             updateCurlPreview();
         });
+
+        updateScenarioUI();
     </script>
 </body>
 </html>
