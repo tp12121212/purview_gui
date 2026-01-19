@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "Connecting to M365 Purview (Connect-IPPSSession -Device)..."
-Connect-IPPSSession -Device
+Connect-IPPSSession 
 
 Write-Host "Fetching DLP Sensitive Information Type rule packs..."
 $rulePacks = Get-DlpSensitiveInformationTypeRulePackage
