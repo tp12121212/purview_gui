@@ -10,6 +10,7 @@ import html as html_lib
 from email import policy
 from email.parser import BytesParser
 import xml.etree.ElementTree as ET
+import base64
 
 import pytesseract
 from PIL import Image
@@ -50,6 +51,7 @@ warnings.filterwarnings(
 DEFAULT_LEXICON_PATH = "lexicon_latest.csv"
 REGEX_PATTERNS_PATH = "regex_patterns.json"
 PROGRESS_DIR = Path(tempfile.gettempdir()) / "purview_scan_progress"
+RULEPACK_CACHE_PATH = Path("rulepack_cache.json")
 MAX_SIT_FILES = 50
 
 SUPPORTED_EXTENSIONS = {
@@ -621,6 +623,7 @@ def scan():
             == "true"
         )
         uploaded_rule_pack = request.files.get("rule_pack_file")
+        rule_pack_base64 = request.form.get("rule_pack_base64", "").strip()
 
         regex_xml_entries = []
         for r in regex_patterns:
@@ -632,6 +635,17 @@ def scan():
         regex_xml = "\n".join(regex_xml_entries) if regex_xml_entries else "    <!-- No regex patterns found -->"
         if uploaded_rule_pack and uploaded_rule_pack.filename:
             rule_pack_bytes = uploaded_rule_pack.read()
+        elif rule_pack_base64:
+            try:
+                rule_pack_bytes = base64.b64decode(rule_pack_base64)
+            except (ValueError, TypeError) as exc:
+                return jsonify({
+                    "success": False,
+                    "error": f"invalid rule_pack_base64: {exc}"
+                }), 400
+        else:
+            rule_pack_bytes = None
+        if rule_pack_bytes:
             try:
                 root = ET.fromstring(rule_pack_bytes)
             except ET.ParseError as exc:
@@ -983,6 +997,23 @@ def lexicon_files():
         pass
     files.sort()
     return jsonify({"success": True, "files": files})
+
+@app.route("/rulepack-cache", methods=["GET"])
+def rulepack_cache():
+    if not RULEPACK_CACHE_PATH.is_file():
+        return jsonify({
+            "success": False,
+            "error": "rule pack cache not found"
+        }), 404
+    try:
+        with open(RULEPACK_CACHE_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        return jsonify({
+            "success": False,
+            "error": f"unable to read rule pack cache: {exc}"
+        }), 400
+    return jsonify({"success": True, "cache": data})
 
 @app.route("/progress/<scan_id>", methods=["GET"])
 def progress(scan_id):

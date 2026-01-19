@@ -564,6 +564,24 @@
                             <input type="text" id="rulePackName" value="CustomRulePack">
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="input-block">
+                            <label for="rulePackSource">Rule Pack Source</label>
+                            <select id="rulePackSource">
+                                <option value="upload">Manual upload</option>
+                                <option value="m365">M365 cached list</option>
+                            </select>
+                            <div class="helper">Run `scripts/refresh_rulepack_cache.ps1` after `Connect-IPPSSession -Device`.</div>
+                        </div>
+                        <div class="input-block">
+                            <label for="rulePackPicklist">Cached Rule Packs</label>
+                            <select id="rulePackPicklist"></select>
+                            <div id="rulePackPicklistStatus" class="helper"></div>
+                            <div style="margin-top: 8px;">
+                                <button class="btn-secondary" id="refreshRulePacks">Refresh from cache</button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="input-block">
                         <label for="rulePackFile">Rule Pack XML (optional)</label>
                         <div class="helper">Upload an existing rule pack XML to update or append a SIT.</div>
@@ -699,7 +717,9 @@
             results: null,
             serverConnected: false,
             progressTimer: null,
-            lastScanId: null
+            lastScanId: null,
+            rulePackCache: [],
+            rulePackBase64: ''
         };
 
         const elements = {
@@ -730,6 +750,10 @@
             sitDescription: document.getElementById('sitDescription'),
             sitPublisher: document.getElementById('sitPublisher'),
             rulePackName: document.getElementById('rulePackName'),
+            rulePackSource: document.getElementById('rulePackSource'),
+            rulePackPicklist: document.getElementById('rulePackPicklist'),
+            rulePackPicklistStatus: document.getElementById('rulePackPicklistStatus'),
+            refreshRulePacks: document.getElementById('refreshRulePacks'),
             rulePackFile: document.getElementById('rulePackFile'),
             rulePackFileName: document.getElementById('rulePackFileName'),
             rulePackMode: document.getElementById('rulePackMode'),
@@ -750,6 +774,7 @@
         window.addEventListener('load', () => {
             checkServerConnection();
             loadPicklists();
+            loadRulePackCache();
             updateCurlPreview();
         });
 
@@ -791,6 +816,15 @@
         elements.refreshLists.addEventListener('click', () => loadPicklists(true));
         elements.regexPicklist.addEventListener('change', () => syncPicklistToInput('regex'));
         elements.lexiconPicklist.addEventListener('change', () => syncPicklistToInput('lexicon'));
+        elements.rulePackSource.addEventListener('change', () => {
+            updateRulePackSourceUI();
+            updateCurlPreview();
+        });
+        elements.rulePackPicklist.addEventListener('change', () => {
+            selectRulePackFromCache();
+            updateCurlPreview();
+        });
+        elements.refreshRulePacks.addEventListener('click', () => loadRulePackCache(true));
 
         document.querySelectorAll('input, select, textarea').forEach(el => {
             if (el.id !== 'curlPreview') {
@@ -909,6 +943,72 @@
                 elements.lexiconStatus.textContent = data.files.length ? '' : 'No lexicon CSV files found in project root.';
             } catch (error) {
                 elements.lexiconStatus.textContent = 'Picklist load failed.';
+            }
+        }
+
+        async function loadRulePackCache(force) {
+            if (!force && state.rulePackCache.length > 0) return;
+            elements.rulePackPicklistStatus.textContent = 'Loading cached rule packs...';
+            elements.rulePackPicklist.innerHTML = '';
+            try {
+                const response = await fetch(`${getApiBaseUrl()}/rulepack-cache`);
+                if (!response.ok) {
+                    throw new Error('Cache unavailable');
+                }
+                const data = await response.json();
+                const items = (data.cache && data.cache.items) ? data.cache.items : [];
+                state.rulePackCache = items;
+                populateRulePackPicklist(items);
+                elements.rulePackPicklistStatus.textContent = items.length
+                    ? `Loaded ${items.length} rule pack(s).`
+                    : 'No rule packs in cache.';
+            } catch (error) {
+                elements.rulePackPicklistStatus.textContent = 'Rule pack cache not available.';
+                state.rulePackCache = [];
+                populateRulePackPicklist([]);
+            }
+        }
+
+        function populateRulePackPicklist(items) {
+            elements.rulePackPicklist.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Select rule pack --';
+            elements.rulePackPicklist.appendChild(placeholder);
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.name || item.id || '';
+                option.textContent = item.version
+                    ? `${item.name} (v${item.version})`
+                    : (item.name || item.id || 'Unnamed rule pack');
+                option.dataset.base64 = item.base64 || '';
+                elements.rulePackPicklist.appendChild(option);
+            });
+            state.rulePackBase64 = '';
+        }
+
+        function selectRulePackFromCache() {
+            const selected = elements.rulePackPicklist.options[elements.rulePackPicklist.selectedIndex];
+            if (!selected || !selected.dataset) {
+                state.rulePackBase64 = '';
+                return;
+            }
+            state.rulePackBase64 = selected.dataset.base64 || '';
+            if (selected.value && !state.rulePackBase64) {
+                flashMessage('Selected rule pack has no XML data in cache.', 'error');
+            }
+        }
+
+        function updateRulePackSourceUI() {
+            const source = elements.rulePackSource.value;
+            const useCache = source === 'm365';
+            elements.rulePackPicklist.disabled = !useCache;
+            elements.refreshRulePacks.disabled = !useCache;
+            elements.rulePackFile.disabled = useCache;
+            elements.rulePackFileName.classList.toggle('config-muted', useCache);
+            if (!useCache) {
+                state.rulePackBase64 = '';
+                elements.rulePackPicklist.value = '';
             }
         }
 
@@ -1057,6 +1157,23 @@
                 }
                 input.classList.toggle('config-muted', !isSit);
             });
+
+            const rulePackInputs = [
+                elements.rulePackSource,
+                elements.rulePackPicklist,
+                elements.refreshRulePacks,
+                elements.rulePackFile
+            ];
+            rulePackInputs.forEach(input => {
+                if (!input) return;
+                if ('disabled' in input) {
+                    input.disabled = !isSit;
+                }
+                input.classList.toggle('config-muted', !isSit);
+            });
+            if (isSit) {
+                updateRulePackSourceUI();
+            }
         }
 
         function generateScanId() {
@@ -1253,7 +1370,9 @@
                 formData.append('rule_pack_name', elements.rulePackName.value.trim());
                 formData.append('rule_pack_mode', elements.rulePackMode.value);
                 formData.append('increment_rule_pack_version', elements.incrementRulePackVersion.checked);
-                if (elements.rulePackFile.files[0]) {
+                if (elements.rulePackSource.value === 'm365' && state.rulePackBase64) {
+                    formData.append('rule_pack_base64', state.rulePackBase64);
+                } else if (elements.rulePackFile.files[0]) {
                     formData.append('rule_pack_file', elements.rulePackFile.files[0]);
                 }
             }
@@ -1426,7 +1545,11 @@
                 addField('rule_pack_name', elements.rulePackName.value.trim());
                 addField('rule_pack_mode', elements.rulePackMode.value);
                 addField('increment_rule_pack_version', elements.incrementRulePackVersion.checked);
-                if (elements.rulePackFile.files.length) {
+                if (elements.rulePackSource.value === 'm365') {
+                    if (state.rulePackBase64) {
+                        lines.push('  -F "rule_pack_base64=<base64>"');
+                    }
+                } else if (elements.rulePackFile.files.length) {
                     lines.push('  -F "rule_pack_file=@/path/to/rulepack.xml"');
                 }
             }
@@ -1472,6 +1595,9 @@
             elements.rulePackName.value = 'CustomRulePack';
             elements.rulePackMode.value = 'new';
             elements.incrementRulePackVersion.checked = true;
+            elements.rulePackSource.value = 'upload';
+            elements.rulePackPicklist.value = '';
+            state.rulePackBase64 = '';
             updateProgressUI({ status: 'idle', percent: 0, current: 0, total: 0, current_document: '' });
             document.getElementById('resultsSection').style.display = 'none';
             updateScenarioUI();
