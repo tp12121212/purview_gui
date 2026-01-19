@@ -9,6 +9,7 @@ import re
 import html as html_lib
 from email import policy
 from email.parser import BytesParser
+import xml.etree.ElementTree as ET
 
 import pytesseract
 from PIL import Image
@@ -599,12 +600,28 @@ def scan():
     warned_regex_csv_disabled = False
     sit_outputs = None
     if scenario_mode == "sit":
+        def increment_version(value: str) -> str:
+            if not value:
+                return "1.0"
+            parts = value.split(".")
+            if not all(part.isdigit() for part in parts):
+                return value
+            parts[-1] = str(int(parts[-1]) + 1)
+            return ".".join(parts)
+
         sit_outputs = {
             "sit_name": request.form.get("sit_name", "").strip() or "Custom SIT",
             "sit_description": request.form.get("sit_description", "").strip(),
             "sit_publisher": request.form.get("sit_publisher", "").strip() or "Purview Custom",
             "rule_pack_name": request.form.get("rule_pack_name", "").strip() or "CustomRulePack",
         }
+        rule_pack_mode = request.form.get("rule_pack_mode", "new").strip().lower()
+        increment_rule_pack_version = (
+            request.form.get("increment_rule_pack_version", "true").strip().lower()
+            == "true"
+        )
+        uploaded_rule_pack = request.files.get("rule_pack_file")
+
         regex_xml_entries = []
         for r in regex_patterns:
             regex_name = html_lib.escape(r.get("name", "Regex"))
@@ -613,27 +630,118 @@ def scan():
                 f'    <Regex name="{regex_name}" pattern="{regex_pattern}" />'
             )
         regex_xml = "\n".join(regex_xml_entries) if regex_xml_entries else "    <!-- No regex patterns found -->"
-        sit_outputs["rule_pack_xml"] = (
-            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-            "<RulePack>\n"
-            f"  <RulePackInfo name=\"{html_lib.escape(sit_outputs['rule_pack_name'])}\" "
-            f"publisher=\"{html_lib.escape(sit_outputs['sit_publisher'])}\" />\n"
-            "  <SensitiveInformationTypes>\n"
-            f"    <SensitiveInformationType name=\"{html_lib.escape(sit_outputs['sit_name'])}\">\n"
-            f"      <Description>{html_lib.escape(sit_outputs['sit_description'])}</Description>\n"
-            "      <Regexes>\n"
-            f"{regex_xml}\n"
-            "      </Regexes>\n"
-            "    </SensitiveInformationType>\n"
-            "  </SensitiveInformationTypes>\n"
-            "</RulePack>\n"
-        )
+        if uploaded_rule_pack and uploaded_rule_pack.filename:
+            rule_pack_bytes = uploaded_rule_pack.read()
+            try:
+                root = ET.fromstring(rule_pack_bytes)
+            except ET.ParseError as exc:
+                write_progress({
+                    "status": "error",
+                    "error": f"invalid rule pack xml: {exc}"
+                })
+                cleanup_temp_files()
+                if log_file:
+                    log_file.close()
+                if debug_file:
+                    debug_file.close()
+                if regex_csv_file:
+                    regex_csv_file.close()
+                if keyword_csv_file:
+                    keyword_csv_file.close()
+                return jsonify({
+                    "success": False,
+                    "error": f"invalid rule pack xml: {exc}"
+                }), 400
+
+            rule_pack_info = root.find("RulePackInfo")
+            if rule_pack_info is None:
+                rule_pack_info = ET.SubElement(root, "RulePackInfo")
+            if sit_outputs["rule_pack_name"]:
+                rule_pack_info.set("name", sit_outputs["rule_pack_name"])
+            if sit_outputs["sit_publisher"]:
+                rule_pack_info.set("publisher", sit_outputs["sit_publisher"])
+            if increment_rule_pack_version:
+                current_version = rule_pack_info.get("version", "")
+                rule_pack_info.set("version", increment_version(current_version))
+
+            sit_parent = root.find("SensitiveInformationTypes")
+            if sit_parent is None:
+                sit_parent = ET.SubElement(root, "SensitiveInformationTypes")
+
+            existing = None
+            for child in sit_parent.findall("SensitiveInformationType"):
+                if child.get("name") == sit_outputs["sit_name"]:
+                    existing = child
+                    break
+
+            if rule_pack_mode == "update":
+                if existing is None:
+                    return jsonify({
+                        "success": False,
+                        "error": f"SIT not found in rule pack: {sit_outputs['sit_name']}"
+                    }), 400
+                target = existing
+            else:
+                if existing is not None:
+                    return jsonify({
+                        "success": False,
+                        "error": f"SIT already exists in rule pack: {sit_outputs['sit_name']}"
+                    }), 400
+                target = ET.SubElement(
+                    sit_parent, "SensitiveInformationType", {"name": sit_outputs["sit_name"]}
+                )
+
+            if sit_outputs["sit_description"]:
+                description = target.find("Description")
+                if description is None:
+                    description = ET.SubElement(target, "Description")
+                description.text = sit_outputs["sit_description"]
+
+            regexes = target.find("Regexes")
+            if regexes is None:
+                regexes = ET.SubElement(target, "Regexes")
+            else:
+                regexes.clear()
+            if regex_patterns:
+                for r in regex_patterns:
+                    ET.SubElement(
+                        regexes,
+                        "Regex",
+                        {
+                            "name": r.get("name", "Regex"),
+                            "pattern": r.get("pattern", ""),
+                        },
+                    )
+            else:
+                regexes.append(ET.Comment("No regex patterns found"))
+
+            sit_outputs["rule_pack_xml"] = ET.tostring(
+                root, encoding="utf-8", xml_declaration=True
+            ).decode("utf-8")
+        else:
+            sit_outputs["rule_pack_xml"] = (
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+                "<RulePack>\n"
+                f"  <RulePackInfo name=\"{html_lib.escape(sit_outputs['rule_pack_name'])}\" "
+                f"publisher=\"{html_lib.escape(sit_outputs['sit_publisher'])}\" version=\"1.0\" />\n"
+                "  <SensitiveInformationTypes>\n"
+                f"    <SensitiveInformationType name=\"{html_lib.escape(sit_outputs['sit_name'])}\">\n"
+                f"      <Description>{html_lib.escape(sit_outputs['sit_description'])}</Description>\n"
+                "      <Regexes>\n"
+                f"{regex_xml}\n"
+                "      </Regexes>\n"
+                "    </SensitiveInformationType>\n"
+                "  </SensitiveInformationTypes>\n"
+                "</RulePack>\n"
+            )
+
         sit_outputs["powershell_script"] = (
             "$rulePackPath = \"./"
             + sit_outputs["rule_pack_name"]
             + ".xml\"\n"
             "Write-Host \"Importing rule pack: $rulePackPath\"\n"
-            "Write-Host \"Run the appropriate Purview import cmdlet for your environment.\"\n"
+            "New-DlpSensitiveInformationTypeRulePackage -FileData "
+            "(Get-Content -Path $rulePackPath -Encoding Byte -ReadCount 0)\n"
         )
 
     output_file = None
