@@ -10,3 +10,5 @@ pdf2image>=1.16.3
 regex>=2023.12.25
 extract-msg>=0.45.0
 flask-cors>=4.0.0
+pandas>=2.2.0
+numpy>=1.26.0

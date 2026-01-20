@@ -36,7 +36,7 @@ if [ -f "requirements.txt" ]; then
   pip install -r requirements.txt
 else
   echo "requirements.txt not found. Installing core deps directly..."
-  pip install flask pytesseract pillow PyPDF2 pycryptodome python-docx openpyxl opencv-python pdf2image regex
+  pip install flask pytesseract pillow PyPDF2 pycryptodome python-docx openpyxl opencv-python pdf2image regex pandas numpy
 fi
 
 # ---- 6. Final info ----
