@@ -53,7 +53,7 @@ warnings.filterwarnings(
 # ======================================================
 
 DEFAULT_LEXICON_PATH = "lexicon_latest.csv"
-REGEX_PATTERNS_PATH = "regex_patterns.json"
+REGEX_PATTERNS_PATH = "regex_patterns.py"
 PROGRESS_DIR = Path(tempfile.gettempdir()) / "purview_scan_progress"
 RULEPACK_CACHE_PATH = Path("rulepack_cache.json")
 MAX_SIT_FILES = 50
@@ -108,6 +108,18 @@ def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH, allowed_types=None):
 # ======================================================
 
 def load_regex_patterns(regex_path: str = REGEX_PATTERNS_PATH):
+    path = Path(regex_path)
+    if path.suffix.lower() == ".py":
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("regex_patterns", path)
+        if spec is None or spec.loader is None:
+            raise ValueError(f"unable to load regex patterns from {regex_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        patterns = getattr(module, "patterns", None)
+        if patterns is None:
+            raise ValueError(f"regex patterns missing 'patterns' in {regex_path}")
+        return patterns
     with open(regex_path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -403,30 +415,10 @@ def scan():
     scan_id = request.form.get("scan_id")
     scan_path = request.form.get("path")
     recursive = request.form.get("recursive", "true").lower() == "true"
-    log_path = request.form.get("log_path")
     log_to_stdout = request.form.get("log_stdout", "true").lower() == "true"
     debug_text = request.form.get("debug_text", "false").lower() == "true"
-    debug_text_path = request.form.get("debug_text_path")
-    def normalize_output_path(value, default):
-        if value is None:
-            return default
-        value = value.strip()
-        if not value:
-            return default
-        if value.lower() in {"none", "null", "false"}:
-            return None
-        return value
-
-    regex_output_path = normalize_output_path(
-        request.form.get("regex_output_path"),
-        "regex_matches.csv",
-    )
-    keyword_output_path = normalize_output_path(
-        request.form.get("keyword_output_path"),
-        "keyword_matches.csv",
-    )
-    if scenario_mode == "scan_only":
-        keyword_output_path = None
+    debug_text_lines = []
+    log_lines = []
     allowed_exts = parse_file_types(request.form.get("file_types"))
     output_path = request.form.get("output_path")
     batch_size = int(request.form.get("batch_size", "500"))
@@ -464,23 +456,6 @@ def scan():
             "current_document": "Listing files..."
         })
 
-    log_file = None
-    if log_path:
-        log_file = open(log_path, "a", encoding="utf-8")
-
-    debug_file = None
-    if debug_text:
-        if not debug_text_path:
-            debug_text_path = "extracted_text.log"
-        if output_path and os.path.abspath(debug_text_path) == os.path.abspath(output_path):
-            if log_file:
-                log_file.close()
-            return jsonify({
-                "success": False,
-                "error": "debug_text_path must be different from output_path"
-            }), 400
-        debug_file = open(debug_text_path, "a", encoding="utf-8")
-
     temp_files = []
 
     def cleanup_temp_files():
@@ -503,7 +478,7 @@ def scan():
     uploaded_lexicon = request.files.get("lexicon_file")
     uploaded_regex = request.files.get("regex_file")
     lexicon_upload_path = save_uploaded_file(uploaded_lexicon, ".csv")
-    regex_upload_path = save_uploaded_file(uploaded_regex, ".json")
+    regex_upload_path = save_uploaded_file(uploaded_regex, ".py")
     if lexicon_upload_path:
         lexicon_path = lexicon_upload_path
     if regex_upload_path:
@@ -534,13 +509,11 @@ def scan():
             "error": f"Scenario 1 requires 1-{MAX_SIT_FILES} files. Found {total_documents}."
         })
         cleanup_temp_files()
-        if log_file:
-            log_file.close()
-        if debug_file:
-            debug_file.close()
         return jsonify({
             "success": False,
-            "error": f"Scenario 1 requires 1-{MAX_SIT_FILES} files. Found {total_documents}."
+            "error": f"Scenario 1 requires 1-{MAX_SIT_FILES} files. Found {total_documents}.",
+            "scan_log": "\n".join(log_lines),
+            "debug_text": "\n".join(debug_text_lines) if debug_text else "",
         }), 400
     write_progress({
         "status": "running" if total_documents > 0 else "complete",
@@ -550,52 +523,14 @@ def scan():
         "current_document": "" if total_documents > 0 else "No files found"
     })
 
-    regex_csv_file = None
-    regex_csv_writer = None
-    if regex_output_path:
-        regex_csv_file = open(regex_output_path, "a", encoding="utf-8", newline="")
-        regex_csv_writer = csv.DictWriter(
-            regex_csv_file,
-            fieldnames=[
-                "regex_name",
-                "document",
-                "position",
-                "value",
-                "context",
-            ],
-        )
-        if os.path.getsize(regex_output_path) == 0:
-            regex_csv_writer.writeheader()
-
-    keyword_csv_file = None
-    keyword_csv_writer = None
-    if keyword_output_path and scenario_mode == "sit":
-        keyword_csv_file = open(keyword_output_path, "a", encoding="utf-8", newline="")
-        keyword_csv_writer = csv.DictWriter(
-            keyword_csv_file,
-            fieldnames=[
-                "phrase",
-                "document",
-                "position",
-                "context",
-                "nearest_regex",
-                "nearest_regex_distance",
-            ],
-        )
-        if os.path.getsize(keyword_output_path) == 0:
-            keyword_csv_writer.writeheader()
-
     def log(line: str):
         if log_to_stdout:
             print(line)
-        if log_file:
-            log_file.write(line + "\n")
-            log_file.flush()
+        log_lines.append(line)
 
     def log_debug_text(line: str):
-        if debug_file:
-            debug_file.write(line + "\n")
-            debug_file.flush()
+        if debug_text:
+            debug_text_lines.append(line)
 
     if not os.path.isfile(regex_path):
         write_progress({
@@ -603,17 +538,11 @@ def scan():
             "error": f"regex_path not found: {regex_path}"
         })
         cleanup_temp_files()
-        if log_file:
-            log_file.close()
-        if debug_file:
-            debug_file.close()
-        if regex_csv_file:
-            regex_csv_file.close()
-        if keyword_csv_file:
-            keyword_csv_file.close()
         return jsonify({
             "success": False,
-            "error": f"regex_path not found: {regex_path}"
+            "error": f"regex_path not found: {regex_path}",
+            "scan_log": "\n".join(log_lines),
+            "debug_text": "\n".join(debug_text_lines) if debug_text else "",
         }), 400
 
     keywords = []
@@ -622,10 +551,11 @@ def scan():
         keywords = load_keywords(lexicon_path, lexicon_types)
         keyword_set = set(keywords)
     regex_patterns = load_regex_patterns(regex_path)
+    regex_pattern_map = {p.get("name", "Regex"): p.get("pattern", "") for p in regex_patterns}
     # Keep debug_text focused on extracted document text only.
 
-    warned_regex_csv_disabled = False
     sit_outputs = None
+    sit_config = None
     if scenario_mode == "sit":
         def increment_version(value: str) -> str:
             if not value:
@@ -642,146 +572,15 @@ def scan():
             "sit_publisher": request.form.get("sit_publisher", "").strip() or "Purview Custom",
             "rule_pack_name": request.form.get("rule_pack_name", "").strip() or "CustomRulePack",
         }
-        rule_pack_mode = request.form.get("rule_pack_mode", "new").strip().lower()
-        increment_rule_pack_version = (
-            request.form.get("increment_rule_pack_version", "true").strip().lower()
-            == "true"
-        )
-        uploaded_rule_pack = request.files.get("rule_pack_file")
-        rule_pack_base64 = request.form.get("rule_pack_base64", "").strip()
-
-        regex_xml_entries = []
-        for r in regex_patterns:
-            regex_name = html_lib.escape(r.get("name", "Regex"))
-            regex_pattern = html_lib.escape(r.get("pattern", ""))
-            regex_xml_entries.append(
-                f'    <Regex name="{regex_name}" pattern="{regex_pattern}" />'
-            )
-        regex_xml = "\n".join(regex_xml_entries) if regex_xml_entries else "    <!-- No regex patterns found -->"
-        if uploaded_rule_pack and uploaded_rule_pack.filename:
-            rule_pack_bytes = uploaded_rule_pack.read()
-        elif rule_pack_base64:
-            try:
-                rule_pack_bytes = base64.b64decode(rule_pack_base64)
-            except (ValueError, TypeError) as exc:
-                return jsonify({
-                    "success": False,
-                    "error": f"invalid rule_pack_base64: {exc}"
-                }), 400
-        else:
-            rule_pack_bytes = None
-        if rule_pack_bytes:
-            try:
-                root = ET.fromstring(rule_pack_bytes)
-            except ET.ParseError as exc:
-                write_progress({
-                    "status": "error",
-                    "error": f"invalid rule pack xml: {exc}"
-                })
-                cleanup_temp_files()
-                if log_file:
-                    log_file.close()
-                if debug_file:
-                    debug_file.close()
-                if regex_csv_file:
-                    regex_csv_file.close()
-                if keyword_csv_file:
-                    keyword_csv_file.close()
-                return jsonify({
-                    "success": False,
-                    "error": f"invalid rule pack xml: {exc}"
-                }), 400
-
-            rule_pack_info = root.find("RulePackInfo")
-            if rule_pack_info is None:
-                rule_pack_info = ET.SubElement(root, "RulePackInfo")
-            if sit_outputs["rule_pack_name"]:
-                rule_pack_info.set("name", sit_outputs["rule_pack_name"])
-            if sit_outputs["sit_publisher"]:
-                rule_pack_info.set("publisher", sit_outputs["sit_publisher"])
-            if increment_rule_pack_version:
-                current_version = rule_pack_info.get("version", "")
-                rule_pack_info.set("version", increment_version(current_version))
-
-            sit_parent = root.find("SensitiveInformationTypes")
-            if sit_parent is None:
-                sit_parent = ET.SubElement(root, "SensitiveInformationTypes")
-
-            existing = None
-            for child in sit_parent.findall("SensitiveInformationType"):
-                if child.get("name") == sit_outputs["sit_name"]:
-                    existing = child
-                    break
-
-            if rule_pack_mode == "update":
-                if existing is None:
-                    return jsonify({
-                        "success": False,
-                        "error": f"SIT not found in rule pack: {sit_outputs['sit_name']}"
-                    }), 400
-                target = existing
-            else:
-                if existing is not None:
-                    return jsonify({
-                        "success": False,
-                        "error": f"SIT already exists in rule pack: {sit_outputs['sit_name']}"
-                    }), 400
-                target = ET.SubElement(
-                    sit_parent, "SensitiveInformationType", {"name": sit_outputs["sit_name"]}
-                )
-
-            if sit_outputs["sit_description"]:
-                description = target.find("Description")
-                if description is None:
-                    description = ET.SubElement(target, "Description")
-                description.text = sit_outputs["sit_description"]
-
-            regexes = target.find("Regexes")
-            if regexes is None:
-                regexes = ET.SubElement(target, "Regexes")
-            else:
-                regexes.clear()
-            if regex_patterns:
-                for r in regex_patterns:
-                    ET.SubElement(
-                        regexes,
-                        "Regex",
-                        {
-                            "name": r.get("name", "Regex"),
-                            "pattern": r.get("pattern", ""),
-                        },
-                    )
-            else:
-                regexes.append(ET.Comment("No regex patterns found"))
-
-            sit_outputs["rule_pack_xml"] = ET.tostring(
-                root, encoding="utf-8", xml_declaration=True
-            ).decode("utf-8")
-        else:
-            sit_outputs["rule_pack_xml"] = (
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-                "<RulePack>\n"
-                f"  <RulePackInfo name=\"{html_lib.escape(sit_outputs['rule_pack_name'])}\" "
-                f"publisher=\"{html_lib.escape(sit_outputs['sit_publisher'])}\" version=\"1.0\" />\n"
-                "  <SensitiveInformationTypes>\n"
-                f"    <SensitiveInformationType name=\"{html_lib.escape(sit_outputs['sit_name'])}\">\n"
-                f"      <Description>{html_lib.escape(sit_outputs['sit_description'])}</Description>\n"
-                "      <Regexes>\n"
-                f"{regex_xml}\n"
-                "      </Regexes>\n"
-                "    </SensitiveInformationType>\n"
-                "  </SensitiveInformationTypes>\n"
-                "</RulePack>\n"
-            )
-
-        sit_outputs["powershell_script"] = (
-            "$rulePackPath = \"./"
-            + sit_outputs["rule_pack_name"]
-            + ".xml\"\n"
-            "Write-Host \"Importing rule pack: $rulePackPath\"\n"
-            "New-DlpSensitiveInformationTypeRulePackage -FileData "
-            "(Get-Content -Path $rulePackPath -Encoding Byte -ReadCount 0)\n"
-        )
+        sit_config = {
+            "rule_pack_mode": request.form.get("rule_pack_mode", "new").strip().lower(),
+            "increment_rule_pack_version": (
+                request.form.get("increment_rule_pack_version", "true").strip().lower()
+                == "true"
+            ),
+            "rule_pack_base64": request.form.get("rule_pack_base64", "").strip(),
+            "rule_pack_file": request.files.get("rule_pack_file"),
+        }
 
     output_file = None
     if output_path:
@@ -792,6 +591,8 @@ def scan():
     errors = []
     documents_scanned = 0
     total_matches = 0
+    regex_summary = {}
+    keyword_summary = {}
 
     def record_match(item):
         nonlocal total_matches
@@ -870,9 +671,6 @@ def scan():
                         })
 
             logged_file = False
-            if regex_hits and not regex_csv_writer and not warned_regex_csv_disabled:
-                log("warning: regex_output_path disabled; regex CSV not written")
-                warned_regex_csv_disabled = True
             for r in regex_hits:
                 if not logged_file:
                     log(f"matched_file: {document}")
@@ -891,14 +689,19 @@ def scan():
                     "value": r["value"],
                     "context": text[max(0, r["start"]-50):r["end"]+50]
                 })
-                if regex_csv_writer:
-                    regex_csv_writer.writerow({
-                        "regex_name": r["name"],
-                        "document": document,
-                        "position": r["start"],
-                        "value": r["value"],
-                        "context": text[max(0, r["start"]-50):r["end"]+50],
-                    })
+                if scenario_mode == "sit":
+                    key = r["name"]
+                    summary = regex_summary.setdefault(
+                        key,
+                        {
+                            "regex_name": r["name"],
+                            "pattern": regex_pattern_map.get(r["name"], ""),
+                            "total_count": 0,
+                            "documents": set(),
+                        },
+                    )
+                    summary["total_count"] += 1
+                    summary["documents"].add(document)
 
             for k in keyword_hits:
                 if not logged_file:
@@ -924,15 +727,18 @@ def scan():
                     "nearest_regex_distance": nearest_dist,
                     "context": text[max(0, k["start"]-50):k["end"]+50]
                 })
-                if keyword_csv_writer:
-                    keyword_csv_writer.writerow({
-                        "phrase": k["phrase"],
-                        "document": document,
-                        "position": k["start"],
-                        "context": text[max(0, k["start"]-50):k["end"]+50],
-                        "nearest_regex": nearest_name,
-                        "nearest_regex_distance": nearest_dist,
-                    })
+                if scenario_mode == "sit":
+                    key = k["phrase"]
+                    summary = keyword_summary.setdefault(
+                        key,
+                        {
+                            "phrase": k["phrase"],
+                            "total_count": 0,
+                            "documents": set(),
+                        },
+                    )
+                    summary["total_count"] += 1
+                    summary["documents"].add(document)
 
         except Exception as e:
             errors.append(f"{document}: {str(e)}")
@@ -947,14 +753,180 @@ def scan():
     if output_file:
         output_file.close()
 
-    if log_file:
-        log_file.close()
-    if debug_file:
-        debug_file.close()
-    if regex_csv_file:
-        regex_csv_file.close()
-    if keyword_csv_file:
-        keyword_csv_file.close()
+    regex_summary_list = []
+    keyword_summary_list = []
+    if scenario_mode == "sit":
+        for summary in regex_summary.values():
+            docs = sorted(summary["documents"])
+            regex_summary_list.append({
+                "regex_name": summary["regex_name"],
+                "pattern": summary["pattern"],
+                "total_count": summary["total_count"],
+                "file_count": len(docs),
+                "documents": docs,
+                "priority": (len(docs) * 1000) + summary["total_count"],
+            })
+        for summary in keyword_summary.values():
+            docs = sorted(summary["documents"])
+            keyword_summary_list.append({
+                "phrase": summary["phrase"],
+                "total_count": summary["total_count"],
+                "file_count": len(docs),
+                "documents": docs,
+                "priority": (len(docs) * 1000) + summary["total_count"],
+            })
+
+        regex_summary_list.sort(
+            key=lambda item: (-item["file_count"], -item["total_count"], item["regex_name"])
+        )
+        keyword_summary_list.sort(
+            key=lambda item: (-item["file_count"], -item["total_count"], item["phrase"])
+        )
+
+        if sit_outputs and sit_config is not None:
+            matched_regex_names = {item["regex_name"] for item in regex_summary_list}
+            matched_patterns = [
+                r for r in regex_patterns if r.get("name") in matched_regex_names
+            ]
+            regex_xml_entries = []
+            for r in matched_patterns:
+                regex_name = html_lib.escape(r.get("name", "Regex"))
+                regex_pattern = html_lib.escape(r.get("pattern", ""))
+                regex_xml_entries.append(
+                    f'    <Regex name="{regex_name}" pattern="{regex_pattern}" />'
+                )
+            regex_xml = "\n".join(regex_xml_entries) if regex_xml_entries else "    <!-- No regex patterns matched -->"
+
+            uploaded_rule_pack = sit_config["rule_pack_file"]
+            rule_pack_base64 = sit_config["rule_pack_base64"]
+            rule_pack_bytes = None
+            if uploaded_rule_pack and uploaded_rule_pack.filename:
+                rule_pack_bytes = uploaded_rule_pack.read()
+            elif rule_pack_base64:
+                try:
+                    rule_pack_bytes = base64.b64decode(rule_pack_base64)
+                except (ValueError, TypeError) as exc:
+                    return jsonify({
+                        "success": False,
+                        "error": f"invalid rule_pack_base64: {exc}",
+                        "scan_log": "\n".join(log_lines),
+                        "debug_text": "\n".join(debug_text_lines) if debug_text else "",
+                    }), 400
+
+            if rule_pack_bytes:
+                try:
+                    root = ET.fromstring(rule_pack_bytes)
+                except ET.ParseError as exc:
+                    write_progress({
+                        "status": "error",
+                        "error": f"invalid rule pack xml: {exc}"
+                    })
+                    cleanup_temp_files()
+                    return jsonify({
+                        "success": False,
+                        "error": f"invalid rule pack xml: {exc}",
+                        "scan_log": "\n".join(log_lines),
+                        "debug_text": "\n".join(debug_text_lines) if debug_text else "",
+                    }), 400
+
+                rule_pack_info = root.find("RulePackInfo")
+                if rule_pack_info is None:
+                    rule_pack_info = ET.SubElement(root, "RulePackInfo")
+                if sit_outputs["rule_pack_name"]:
+                    rule_pack_info.set("name", sit_outputs["rule_pack_name"])
+                if sit_outputs["sit_publisher"]:
+                    rule_pack_info.set("publisher", sit_outputs["sit_publisher"])
+                if sit_config["increment_rule_pack_version"]:
+                    current_version = rule_pack_info.get("version", "")
+                    parts = current_version.split(".") if current_version else []
+                    if parts and all(part.isdigit() for part in parts):
+                        parts[-1] = str(int(parts[-1]) + 1)
+                        rule_pack_info.set("version", ".".join(parts))
+
+                sit_parent = root.find("SensitiveInformationTypes")
+                if sit_parent is None:
+                    sit_parent = ET.SubElement(root, "SensitiveInformationTypes")
+
+                existing = None
+                for child in sit_parent.findall("SensitiveInformationType"):
+                    if child.get("name") == sit_outputs["sit_name"]:
+                        existing = child
+                        break
+
+                if sit_config["rule_pack_mode"] == "update":
+                    if existing is None:
+                        return jsonify({
+                            "success": False,
+                            "error": f"SIT not found in rule pack: {sit_outputs['sit_name']}",
+                            "scan_log": "\n".join(log_lines),
+                            "debug_text": "\n".join(debug_text_lines) if debug_text else "",
+                        }), 400
+                    target = existing
+                else:
+                    if existing is not None:
+                        return jsonify({
+                            "success": False,
+                            "error": f"SIT already exists in rule pack: {sit_outputs['sit_name']}",
+                            "scan_log": "\n".join(log_lines),
+                            "debug_text": "\n".join(debug_text_lines) if debug_text else "",
+                        }), 400
+                    target = ET.SubElement(
+                        sit_parent, "SensitiveInformationType", {"name": sit_outputs["sit_name"]}
+                    )
+
+                if sit_outputs["sit_description"]:
+                    description = target.find("Description")
+                    if description is None:
+                        description = ET.SubElement(target, "Description")
+                    description.text = sit_outputs["sit_description"]
+
+                regexes = target.find("Regexes")
+                if regexes is None:
+                    regexes = ET.SubElement(target, "Regexes")
+                else:
+                    regexes.clear()
+                if matched_patterns:
+                    for r in matched_patterns:
+                        ET.SubElement(
+                            regexes,
+                            "Regex",
+                            {
+                                "name": r.get("name", "Regex"),
+                                "pattern": r.get("pattern", ""),
+                            },
+                        )
+                else:
+                    regexes.append(ET.Comment("No regex patterns matched"))
+
+                sit_outputs["rule_pack_xml"] = ET.tostring(
+                    root, encoding="utf-8", xml_declaration=True
+                ).decode("utf-8")
+            else:
+                sit_outputs["rule_pack_xml"] = (
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+                    "<RulePack>\n"
+                    f"  <RulePackInfo name=\"{html_lib.escape(sit_outputs['rule_pack_name'])}\" "
+                    f"publisher=\"{html_lib.escape(sit_outputs['sit_publisher'])}\" version=\"1.0\" />\n"
+                    "  <SensitiveInformationTypes>\n"
+                    f"    <SensitiveInformationType name=\"{html_lib.escape(sit_outputs['sit_name'])}\">\n"
+                    f"      <Description>{html_lib.escape(sit_outputs['sit_description'])}</Description>\n"
+                    "      <Regexes>\n"
+                    f"{regex_xml}\n"
+                    "      </Regexes>\n"
+                    "    </SensitiveInformationType>\n"
+                    "  </SensitiveInformationTypes>\n"
+                    "</RulePack>\n"
+                )
+
+            sit_outputs["powershell_script"] = (
+                "$rulePackPath = \"./"
+                + sit_outputs["rule_pack_name"]
+                + ".xml\"\n"
+                "Write-Host \"Importing rule pack: $rulePackPath\"\n"
+                "New-DlpSensitiveInformationTypeRulePackage -FileData "
+                "(Get-Content -Path $rulePackPath -Encoding Byte -ReadCount 0)\n"
+            )
+
     cleanup_temp_files()
     write_progress({
         "status": "complete",
@@ -971,7 +943,11 @@ def scan():
         "documents_scanned": documents_scanned,
         "total_matches": total_matches,
         "matches": results,
-        "errors": errors
+        "regex_summary": regex_summary_list,
+        "keyword_summary": keyword_summary_list,
+        "errors": errors,
+        "scan_log": "\n".join(log_lines),
+        "debug_text": "\n".join(debug_text_lines) if debug_text else ""
     })
 
 
@@ -997,14 +973,14 @@ def regex_files():
     root = Path(".").resolve()
     files = []
     try:
-        for path in root.glob("regex_patterns*.json"):
+        for path in list(root.glob("regex_patterns*.py")) + list(root.glob("regex_patterns*.json")):
             if path.is_file():
                 files.append(path.name)
                 if len(files) >= 200:
                     break
     except OSError:
         pass
-    files.sort()
+    files.sort(key=lambda name: (0 if name.endswith(".py") else 1, name))
     return jsonify({"success": True, "files": files})
 
 

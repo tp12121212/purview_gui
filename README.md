@@ -8,7 +8,8 @@ This is a complete document scanning system with OCR support and strict lexicon 
 - `requirements.txt` - Python dependencies
 - `index.html` - Web interface (frontend)
 - `lexicon_latest.csv` - Strict multi-word keyword lexicon
-- `regex_patterns.json` - Regex patterns used for correlation
+- `regex_patterns.py` - Regex patterns used for correlation (preferred, no JSON escaping)
+- `regex_patterns.json` - Legacy JSON regex patterns (requires escaping)
 
 ---
 
@@ -74,7 +75,7 @@ Server running on http://localhost:5000
 
 2. **Configure Detection**
    - Keywords are loaded from `lexicon_latest.csv` by default
-   - Regex patterns are loaded from `regex_patterns.json`
+   - Regex patterns are loaded from `regex_patterns.py` (preferred) or `regex_patterns.json`
    - Only strict multi-word keywords are used from the lexicon
 
 3. **Scan & Analyze** - Click to process documents (regex and keyword matching run independently)
@@ -122,8 +123,8 @@ Python packages:
 ### lexicon_latest.csv
 Lexicon CSV containing keywords. Only strict two-word, alphanumeric phrases with a single space are used.
 
-### regex_patterns.json
-JSON list of regex patterns with `name` and `pattern` used to find structured values.
+### regex_patterns.py
+Python list of regex patterns with `name` and `pattern` used to find structured values.
 
 ---
 
@@ -184,23 +185,27 @@ Content-Type: multipart/form-data
 Parameters:
 - files: (file array) Document files
 - lexicon_path: (string) Optional path to lexicon CSV (default: lexicon_latest.csv)
-- regex_path: (string) Optional path to regex JSON (default: regex_patterns.json)
+- regex_path: (string) Optional path to regex patterns file (default: regex_patterns.py)
 - path: (string) Optional local path to scan on server
 - recursive: (boolean) Scan path recursively (default: true)
 - file_types: (string) Optional comma-separated extensions (e.g. "pdf,docx") to limit scans
 - log_stdout: (boolean) Print progress/matches to stdout (default: true)
-- log_path: (string) Optional log file path (append mode)
 - debug_text: (boolean) Log extracted text for every file (default: false)
-- debug_text_path: (string) Output file for extracted text logs (default: extracted_text.log)
-- regex_output_path: (string) Optional CSV output path for regex matches (append mode)
-- keyword_output_path: (string) Optional CSV output path for keyword matches (append mode)
+- regex/keyword CSVs are returned to the UI (no files written)
 - output_path: (string) Optional JSONL output file path (append mode)
 - batch_size: (integer) Number of matches to buffer before writing to output_path (default: 500)
 - return_limit: (integer) Max matches to include in response when output_path is set (0 = none)
+
+Response additions:
+- scan_log: (string) In-memory scan log returned in the response
+- debug_text: (string) Extracted text log when debug_text=true
+- regex/keyword CSVs are generated in the UI from the response matches
+- regex_summary: (array) Scenario 1 aggregated regex matches (deduped with counts, file_count, priority)
+- keyword_summary: (array) Scenario 1 aggregated keyword matches (deduped with counts, file_count, priority)
 ```
 
 ### GET /regex-files
-Returns JSON list of regex pattern files in the project root (e.g. `regex_patterns.json`, `regex_patterns_simple.json`).
+Returns JSON list of regex pattern files in the project root (e.g. `regex_patterns.py`, `regex_patterns.json`, `regex_patterns_simple.json`).
 
 ### GET /lexicon-files
 Returns JSON list of lexicon CSV files in the project root (any file starting with `lexicon` and ending in `.csv`).
@@ -218,14 +223,11 @@ curl -X POST "http://127.0.0.1:5000/scan" \
   -F "scan_id=scan1234567890abcd" \
   -F "files=@/absolute/path/to/document.pdf" \
   -F "lexicon_path=lexicon_latest.csv" \
-  -F "regex_path=regex_patterns.json" \
+  -F "regex_path=regex_patterns.py" \
   -F "recursive=true" \
   -F "file_types=pdf,docx,xlsx,jpg,jpeg,png,tif,tiff,eml,msg" \
   -F "log_stdout=true" \
   -F "debug_text=false" \
-  -F "debug_text_path=extracted_text.log" \
-  -F "regex_output_path=regex_matches.csv" \
-  -F "keyword_output_path=keyword_matches.csv" \
   -F "batch_size=500" \
   -F "return_limit=0"
 ```
@@ -237,7 +239,7 @@ curl -X POST "http://127.0.0.1:5000/scan" \
   -F "path=/path/to/folder" \
   -F "recursive=true" \
   -F "lexicon_path=lexicon_latest.csv" \
-  -F "regex_path=regex_patterns.json"
+  -F "regex_path=regex_patterns.py"
 ```
 
 **Response:**
@@ -315,15 +317,8 @@ curl -X POST http://localhost:5000/scan \
   -F "path=/path/to/documents"
 ```
 
-Log matches to a file:
-```bash
-curl -X POST http://localhost:5000/scan \
-  -F "path=/path/to/documents" \
-  -F "log_path=/path/to/scan.log"
-```
-
 ### Logging Output
-Example lines when logging to stdout or a file:
+Example lines returned in `scan_log` (and optionally printed to stdout):
 ```
 matched_file: /path/to/documents/file1.pdf
 match: keyword=invoice number document=/path/to/documents/file1.pdf nearest_regex=Date distance=12

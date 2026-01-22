@@ -517,13 +517,13 @@
                     <h2>Detection Files</h2>
                     <div class="info" id="detectionInfo">Scenario 1 uses regex + lexicon keyword correlation.</div>
                     <div class="input-block">
-                        <label for="regexPath">Regex Patterns (JSON)</label>
+                        <label for="regexPath">Regex Patterns (.py or .json)</label>
                         <select id="regexPicklist"></select>
-                        <input type="text" id="regexPath" value="regex_patterns.json" style="margin-top: 8px;">
+                        <input type="text" id="regexPath" value="regex_patterns.py" style="margin-top: 8px;">
                         <div class="helper">Pick a file from the project root, or enter a server path.</div>
                         <div id="regexStatus" class="helper"></div>
                         <div style="margin-top: 8px;">
-                            <input type="file" id="regexFile" accept=".json,application/json">
+                            <input type="file" id="regexFile" accept=".py,.json,application/json,text/x-python">
                             <div id="regexFileName" class="helper"></div>
                         </div>
                     </div>
@@ -638,16 +638,8 @@
                             <label for="returnLimit">Return Limit</label>
                             <input type="number" id="returnLimit" value="0" min="0">
                         </div>
-                        <div class="input-block">
-                            <label for="logPath">Log File Path</label>
-                            <input type="text" id="logPath" value="" placeholder="scan.log">
-                        </div>
                     </div>
                     <div class="row">
-                        <div class="input-block">
-                            <label for="debugTextPath">Extracted Text Output</label>
-                            <input type="text" id="debugTextPath" value="extracted_text.log">
-                        </div>
                         <div class="input-block">
                             <label for="outputPath">JSONL Output Path</label>
                             <input type="text" id="outputPath" value="" placeholder="results.jsonl">
@@ -655,12 +647,8 @@
                     </div>
                     <div class="row">
                         <div class="input-block">
-                            <label for="regexOutputPath">Regex CSV Path</label>
-                            <input type="text" id="regexOutputPath" value="regex_matches.csv">
-                        </div>
-                        <div class="input-block">
-                            <label for="keywordOutputPath">Keyword CSV Path</label>
-                            <input type="text" id="keywordOutputPath" value="keyword_matches.csv">
+                            <label>Regex/Keyword Outputs</label>
+                            <div class="helper">Regex + keyword match CSVs are shown below after the scan.</div>
                         </div>
                     </div>
                     <div class="input-block">
@@ -705,6 +693,30 @@
             <div id="successMessage" class="message success"></div>
             <div id="stats" class="stats" style="display: none;"></div>
             <div id="matchesList"></div>
+            <div id="logOutputs" class="input-block hidden" style="margin-top: 12px;">
+                <h3>Scan Logs</h3>
+                <label for="scanLog">Scan Log</label>
+                <textarea id="scanLog" class="code-block" readonly></textarea>
+                <div class="buttons" style="margin-top: 8px;">
+                    <button class="btn-secondary" id="downloadScanLog">Download Scan Log</button>
+                </div>
+                <label for="debugTextOutput" style="margin-top: 12px;">Extracted Text</label>
+                <textarea id="debugTextOutput" class="code-block" readonly></textarea>
+                <div class="buttons" style="margin-top: 8px;">
+                    <button class="btn-secondary" id="downloadDebugText">Download Extracted Text</button>
+                </div>
+                <h3 style="margin-top: 16px;">Match CSVs</h3>
+                <label for="regexCsvOutput">Regex Matches CSV</label>
+                <textarea id="regexCsvOutput" class="code-block" readonly></textarea>
+                <div class="buttons" style="margin-top: 8px;">
+                    <button class="btn-secondary" id="downloadRegexCsv">Download Regex CSV</button>
+                </div>
+                <label for="keywordCsvOutput" style="margin-top: 12px;">Keyword Matches CSV</label>
+                <textarea id="keywordCsvOutput" class="code-block" readonly></textarea>
+                <div class="buttons" style="margin-top: 8px;">
+                    <button class="btn-secondary" id="downloadKeywordCsv">Download Keyword CSV</button>
+                </div>
+            </div>
             <div id="sitOutputs" class="input-block hidden">
                 <h3>Custom SIT Output</h3>
                 <label for="sitXml">Rule Pack XML</label>
@@ -790,7 +802,11 @@
             copyCurl: document.getElementById('copyCurl'),
             copySitXml: document.getElementById('copySitXml'),
             copySitScript: document.getElementById('copySitScript'),
-            downloadSitXml: document.getElementById('downloadSitXml')
+            downloadSitXml: document.getElementById('downloadSitXml'),
+            downloadScanLog: document.getElementById('downloadScanLog'),
+            downloadDebugText: document.getElementById('downloadDebugText'),
+            downloadRegexCsv: document.getElementById('downloadRegexCsv'),
+            downloadKeywordCsv: document.getElementById('downloadKeywordCsv')
         };
 
         window.addEventListener('load', () => {
@@ -897,6 +913,42 @@
             downloadFile(xmlValue, `${elements.rulePackName.value.trim() || 'CustomRulePack'}.xml`, 'application/xml');
         });
 
+        elements.downloadScanLog.addEventListener('click', () => {
+            const content = document.getElementById('scanLog').value || '';
+            if (!content.trim()) {
+                flashMessage('No scan log to download.', 'error');
+                return;
+            }
+            downloadFile(content, 'scan_log.txt', 'text/plain');
+        });
+
+        elements.downloadDebugText.addEventListener('click', () => {
+            const content = document.getElementById('debugTextOutput').value || '';
+            if (!content.trim()) {
+                flashMessage('No extracted text to download.', 'error');
+                return;
+            }
+            downloadFile(content, 'extracted_text.txt', 'text/plain');
+        });
+
+        elements.downloadRegexCsv.addEventListener('click', () => {
+            const content = document.getElementById('regexCsvOutput').value || '';
+            if (!content.trim()) {
+                flashMessage('No regex matches to download.', 'error');
+                return;
+            }
+            downloadFile(content, 'regex_matches.csv', 'text/csv');
+        });
+
+        elements.downloadKeywordCsv.addEventListener('click', () => {
+            const content = document.getElementById('keywordCsvOutput').value || '';
+            if (!content.trim()) {
+                flashMessage('No keyword matches to download.', 'error');
+                return;
+            }
+            downloadFile(content, 'keyword_matches.csv', 'text/csv');
+        });
+
         function getApiBaseUrl() {
             const value = elements.apiBaseUrl.value.trim();
             return value || 'http://127.0.0.1:5000';
@@ -942,7 +994,7 @@
                 }
                 const data = await response.json();
                 if (!data || !data.success || !Array.isArray(data.files)) return;
-                populatePicklist(picklist, data.files, 'regex_patterns.json');
+                populatePicklist(picklist, data.files, 'regex_patterns.py');
                 elements.regexStatus.textContent = data.files.length ? '' : 'No regex files found in project root.';
             } catch (error) {
                 elements.regexStatus.textContent = 'Picklist load failed.';
@@ -1175,8 +1227,7 @@
                 elements.lexiconPicklist,
                 elements.lexiconPath,
                 elements.lexiconFile,
-                elements.lexiconFileName,
-                document.getElementById('keywordOutputPath')
+                elements.lexiconFileName
             ];
             lexiconInputs.forEach(input => {
                 if (!input) return;
@@ -1343,7 +1394,7 @@
                 formData.append('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
                 formData.append('lexicon_types', getSelectedLexiconTypes().join(','));
             }
-            formData.append('regex_path', elements.regexPath.value.trim() || 'regex_patterns.json');
+                formData.append('regex_path', elements.regexPath.value.trim() || 'regex_patterns.py');
 
             if (scenarioMode === 'sit' && elements.lexiconFile.files[0]) {
                 formData.append('lexicon_file', elements.lexiconFile.files[0]);
@@ -1361,30 +1412,8 @@
 
             formData.append('log_stdout', document.getElementById('logStdout').checked);
 
-            const logPath = document.getElementById('logPath').value.trim();
-            if (logPath) {
-                formData.append('log_path', logPath);
-            }
-
             const debugText = document.getElementById('debugText').checked;
             formData.append('debug_text', debugText);
-
-            const debugTextPath = document.getElementById('debugTextPath').value.trim();
-            if (debugTextPath) {
-                formData.append('debug_text_path', debugTextPath);
-            }
-
-            const regexOutputPath = document.getElementById('regexOutputPath').value.trim();
-            if (regexOutputPath) {
-                formData.append('regex_output_path', regexOutputPath);
-            }
-
-            if (scenarioMode === 'sit') {
-                const keywordOutputPath = document.getElementById('keywordOutputPath').value.trim();
-                if (keywordOutputPath) {
-                    formData.append('keyword_output_path', keywordOutputPath);
-                }
-            }
 
             const outputPath = document.getElementById('outputPath').value.trim();
             if (outputPath) {
@@ -1426,6 +1455,11 @@
             const sitOutputs = document.getElementById('sitOutputs');
             const sitXml = document.getElementById('sitXml');
             const sitScript = document.getElementById('sitScript');
+            const logOutputs = document.getElementById('logOutputs');
+            const scanLog = document.getElementById('scanLog');
+            const debugTextOutput = document.getElementById('debugTextOutput');
+            const regexCsvOutput = document.getElementById('regexCsvOutput');
+            const keywordCsvOutput = document.getElementById('keywordCsvOutput');
             resultsSection.style.display = 'block';
 
             if (results.errors && results.errors.length > 0) {
@@ -1466,6 +1500,20 @@
                 sitOutputs.classList.add('hidden');
             }
 
+            const scanLogValue = results.scan_log || '';
+            const debugTextValue = results.debug_text || '';
+            const regexCsvValue = buildRegexCsv(results.regex_summary || [], results.matches || []);
+            const keywordCsvValue = buildKeywordCsv(results.keyword_summary || [], results.matches || []);
+            scanLog.value = scanLogValue;
+            debugTextOutput.value = debugTextValue;
+            regexCsvOutput.value = regexCsvValue;
+            keywordCsvOutput.value = keywordCsvValue;
+            if (scanLogValue || debugTextValue || regexCsvValue || keywordCsvValue) {
+                logOutputs.classList.remove('hidden');
+            } else {
+                logOutputs.classList.add('hidden');
+            }
+
             exportButtons.innerHTML = `
                 <button class="btn-primary" onclick="exportResults('json')">Export JSON</button>
                 <button class="btn-secondary" onclick="exportResults('csv')">Export CSV</button>
@@ -1479,6 +1527,11 @@
             document.getElementById('successMessage').style.display = 'none';
             document.getElementById('stats').style.display = 'none';
             document.getElementById('matchesList').innerHTML = '';
+            document.getElementById('logOutputs').classList.add('hidden');
+            document.getElementById('scanLog').value = '';
+            document.getElementById('debugTextOutput').value = '';
+            document.getElementById('regexCsvOutput').value = '';
+            document.getElementById('keywordCsvOutput').value = '';
             document.getElementById('exportButtons').style.display = 'none';
         }
 
@@ -1517,6 +1570,109 @@
                 });
                 downloadFile(content, 'results.csv', 'text/csv');
             }
+        }
+
+        function csvEscape(value) {
+            return `"${String(value ?? '').replace(/"/g, '""')}"`;
+        }
+
+        function buildRegexCsv(summary, matches) {
+            if (!Array.isArray(summary) || summary.length === 0) {
+                const map = new Map();
+                matches.filter(item => item.type === 'regex').forEach(item => {
+                    const name = item.regex_name || '';
+                    const entry = map.get(name) || {
+                        regex_name: name,
+                        pattern: '',
+                        total_count: 0,
+                        documents: new Set()
+                    };
+                    entry.total_count += 1;
+                    if (item.document) entry.documents.add(item.document);
+                    map.set(name, entry);
+                });
+                summary = Array.from(map.values()).map(entry => {
+                    const docs = Array.from(entry.documents).sort();
+                    return {
+                        regex_name: entry.regex_name,
+                        pattern: entry.pattern,
+                        total_count: entry.total_count,
+                        file_count: docs.length,
+                        documents: docs,
+                        priority: (docs.length * 1000) + entry.total_count
+                    };
+                }).sort((a, b) => {
+                    if (b.file_count !== a.file_count) return b.file_count - a.file_count;
+                    if (b.total_count !== a.total_count) return b.total_count - a.total_count;
+                    return String(a.regex_name).localeCompare(String(b.regex_name));
+                });
+            }
+
+            if (Array.isArray(summary) && summary.length) {
+                let content = 'regex_name,pattern,total_count,file_count,priority,documents\n';
+                summary.forEach(item => {
+                    content += [
+                        csvEscape(item.regex_name || ''),
+                        csvEscape(item.pattern || ''),
+                        csvEscape(item.total_count ?? ''),
+                        csvEscape(item.file_count ?? ''),
+                        csvEscape(item.priority ?? ''),
+                        csvEscape((item.documents || []).join('|'))
+                    ].join(',') + '\n';
+                });
+                return content.trim();
+            }
+            return '';
+        }
+
+        function buildKeywordCsv(summary, matches) {
+            if (!Array.isArray(summary) || summary.length === 0) {
+                const map = new Map();
+                const normalizeValue = value => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+                matches.filter(item => item.type === 'keyword').forEach(item => {
+                    const phrase = item.phrase || '';
+                    const normalized = normalizeValue(phrase);
+                    const entry = map.get(normalized) || {
+                        phrase,
+                        normalized_phrase: normalized,
+                        total_count: 0,
+                        documents: new Set()
+                    };
+                    entry.total_count += 1;
+                    if (item.document) entry.documents.add(item.document);
+                    map.set(normalized, entry);
+                });
+                summary = Array.from(map.values()).map(entry => {
+                    const docs = Array.from(entry.documents).sort();
+                    return {
+                        phrase: entry.phrase,
+                        normalized_phrase: entry.normalized_phrase,
+                        total_count: entry.total_count,
+                        file_count: docs.length,
+                        documents: docs,
+                        priority: (docs.length * 1000) + entry.total_count
+                    };
+                }).sort((a, b) => {
+                    if (b.file_count !== a.file_count) return b.file_count - a.file_count;
+                    if (b.total_count !== a.total_count) return b.total_count - a.total_count;
+                    return String(a.phrase).localeCompare(String(b.phrase));
+                });
+            }
+
+            if (Array.isArray(summary) && summary.length) {
+                let content = 'phrase,total_count,file_count,priority,documents\n';
+                summary.forEach(item => {
+                    content += [
+                        csvEscape(item.phrase || ''),
+                        csvEscape(item.total_count ?? ''),
+                        csvEscape(item.file_count ?? ''),
+                        csvEscape(item.priority ?? ''),
+                        csvEscape((item.documents || []).join('|'))
+                    ].join(',') + '\n';
+                });
+                return content.trim();
+            }
+            return '';
         }
 
         function downloadFile(content, filename, type) {
@@ -1563,17 +1719,11 @@
                 addField('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
                 addField('lexicon_types', getSelectedLexiconTypes().join(','));
             }
-            addField('regex_path', elements.regexPath.value.trim() || 'regex_patterns.json');
+            addField('regex_path', elements.regexPath.value.trim() || 'regex_patterns.py');
             addField('recursive', document.getElementById('recursive').checked);
             addField('file_types', document.getElementById('fileTypes').value.trim());
             addField('log_stdout', document.getElementById('logStdout').checked);
-            addField('log_path', document.getElementById('logPath').value.trim());
             addField('debug_text', document.getElementById('debugText').checked);
-            addField('debug_text_path', document.getElementById('debugTextPath').value.trim());
-            addField('regex_output_path', document.getElementById('regexOutputPath').value.trim());
-            if (scenarioMode === 'sit') {
-                addField('keyword_output_path', document.getElementById('keywordOutputPath').value.trim());
-            }
             addField('output_path', document.getElementById('outputPath').value.trim());
             addField('batch_size', document.getElementById('batchSize').value.trim());
             addField('return_limit', document.getElementById('returnLimit').value.trim());
@@ -1607,17 +1757,13 @@
             elements.regexFile.value = '';
             elements.lexiconFile.value = '';
             elements.rulePackFile.value = '';
-            elements.regexPath.value = 'regex_patterns.json';
+            elements.regexPath.value = 'regex_patterns.py';
             elements.lexiconPath.value = 'lexicon_latest.csv';
             elements.scanPath.value = '';
             document.getElementById('fileTypes').value = 'pdf,docx,xlsx,jpg,jpeg,png,tif,tiff,eml,msg';
             document.getElementById('recursive').checked = true;
             document.getElementById('logStdout').checked = true;
             document.getElementById('debugText').checked = false;
-            document.getElementById('logPath').value = '';
-            document.getElementById('debugTextPath').value = 'extracted_text.log';
-            document.getElementById('regexOutputPath').value = 'regex_matches.csv';
-            document.getElementById('keywordOutputPath').value = 'keyword_matches.csv';
             document.getElementById('outputPath').value = '';
             document.getElementById('batchSize').value = '500';
             document.getElementById('returnLimit').value = '0';

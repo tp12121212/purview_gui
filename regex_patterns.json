@@ -45,7 +45,7 @@
   },
   {
     "name": "australian_address",
-    "pattern": "(?:^|[\\s,;:\\(\\)\\[\\]\"\\'\\'])((((Unit\\s[0-9]+|U[0-9]+|Level\\s[0-9]+|L[0-9]+)\\s*)?[0-9]{1,5}(/[0-9]{1,5})?\\s[A-Za-z0-9\\s]+(St|Street|Rd|Road|Ave|Avenue|Ln|Lane|Dr|Drive|Pl|Place|Ct|Court|Boulevard|Blvd|Cres|Crescent|Way|Terrace|Tce)))(?:$|[\\s,;:\\(\\)\\[\\]\"\\'\\']|\\.\\s|\\.$)"
+    "pattern": "(?:^|[\\s,;\\:\\(\\)\\[\\]\"\\'])((\\d{1,6}\\s+[A-Za-z0-9]+\\s+(St|Street|Rd|Road|Ave|Avenue|Ct|Court|Crt|Ln|Lane|Blvd|Boulevard|Pl|Place|Terrace|Terr|Cres|Crescent|Dr|Drive|Pde|Parade|Way|Wk|Walk)))(?:$|[\\s,\\;\\:\\(\\)\\[\\]\"\\']|\\.\\s|\\.$)"
   },
   {
     "name": "australian_mobile_number",
