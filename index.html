@@ -538,6 +538,18 @@
                             <div id="lexiconFileName" class="helper"></div>
                         </div>
                     </div>
+                    <div class="input-block" id="lexiconTypeBlock">
+                        <label>Lexicon Keyword Types (Scenario 1)</label>
+                        <div class="checkboxes">
+                            <label><input type="checkbox" name="lexiconType" value="firstname" checked> First name</label>
+                            <label><input type="checkbox" name="lexiconType" value="lastname" checked> Last name</label>
+                            <label><input type="checkbox" name="lexiconType" value="country" checked> Country</label>
+                            <label><input type="checkbox" name="lexiconType" value="city" checked> City</label>
+                            <label><input type="checkbox" name="lexiconType" value="state" checked> State</label>
+                            <label><input type="checkbox" name="lexiconType" value="other" checked> Other</label>
+                        </div>
+                        <div class="helper">Filters keyword correlation for Scenario 1 only.</div>
+                    </div>
                     <button class="btn-secondary" id="refreshLists">Refresh picklists</button>
                 </div>
             </div>
@@ -722,6 +734,15 @@
             rulePackBase64: ''
         };
 
+        const LEXICON_TYPES = [
+            'firstname',
+            'lastname',
+            'country',
+            'city',
+            'state',
+            'other'
+        ];
+
         const elements = {
             apiBaseUrl: document.getElementById('apiBaseUrl'),
             inputSource: document.getElementById('inputSource'),
@@ -741,6 +762,7 @@
             lexiconFileName: document.getElementById('lexiconFileName'),
             regexStatus: document.getElementById('regexStatus'),
             lexiconStatus: document.getElementById('lexiconStatus'),
+            lexiconTypeBlock: document.getElementById('lexiconTypeBlock'),
             refreshLists: document.getElementById('refreshLists'),
             scenarioToggle: document.getElementById('scenarioToggle'),
             fileLimitInfo: document.getElementById('fileLimitInfo'),
@@ -1126,6 +1148,12 @@
             return checked ? checked.value : 'sit';
         }
 
+        function getSelectedLexiconTypes() {
+            const checked = Array.from(document.querySelectorAll('input[name="lexiconType"]:checked'))
+                .map(input => input.value);
+            return checked.length ? checked : [...LEXICON_TYPES];
+        }
+
         function updateScenarioUI() {
             const mode = getScenarioMode();
             const scenarioCards = elements.scenarioToggle.querySelectorAll('.scenario-card');
@@ -1157,6 +1185,15 @@
                 }
                 input.classList.toggle('config-muted', !isSit);
             });
+
+            const lexiconTypeInputs = document.querySelectorAll('input[name="lexiconType"]');
+            lexiconTypeInputs.forEach(input => {
+                input.disabled = !isSit;
+                input.classList.toggle('config-muted', !isSit);
+            });
+            if (elements.lexiconTypeBlock) {
+                elements.lexiconTypeBlock.classList.toggle('config-muted', !isSit);
+            }
 
             const rulePackInputs = [
                 elements.rulePackSource,
@@ -1304,6 +1341,7 @@
             formData.append('scenario_mode', scenarioMode);
             if (scenarioMode === 'sit') {
                 formData.append('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
+                formData.append('lexicon_types', getSelectedLexiconTypes().join(','));
             }
             formData.append('regex_path', elements.regexPath.value.trim() || 'regex_patterns.json');
 
@@ -1523,6 +1561,7 @@
 
             if (scenarioMode === 'sit') {
                 addField('lexicon_path', elements.lexiconPath.value.trim() || 'lexicon_latest.csv');
+                addField('lexicon_types', getSelectedLexiconTypes().join(','));
             }
             addField('regex_path', elements.regexPath.value.trim() || 'regex_patterns.json');
             addField('recursive', document.getElementById('recursive').checked);
@@ -1582,6 +1621,9 @@
             document.getElementById('outputPath').value = '';
             document.getElementById('batchSize').value = '500';
             document.getElementById('returnLimit').value = '0';
+            document.querySelectorAll('input[name="lexiconType"]').forEach(input => {
+                input.checked = true;
+            });
             state.files = [];
             state.results = null;
             elements.fileList.textContent = '';

@@ -2,6 +2,7 @@ import os
 import csv
 import json
 import tempfile
+import sys
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -20,6 +21,9 @@ import openpyxl
 from pdf2image import convert_from_path
 import extract_msg
 import warnings
+
+if sys.version_info[:2] != (3, 11):
+    raise SystemExit("Python 3.11 is required. Please use a 3.11 virtual environment.")
 
 # ======================================================
 # Flask app
@@ -67,11 +71,17 @@ MAX_NESTED_DEPTH = 2
 # Lexicon loading (single-word only)
 # ======================================================
 
-def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH):
+def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH, allowed_types=None):
     keywords = []
 
     with open(lexicon_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
+        type_key = None
+        if reader.fieldnames:
+            for name in reader.fieldnames:
+                if name and name.strip().lower() == "type":
+                    type_key = name
+                    break
         for row in reader:
             value = (
                 row.get("keyword")
@@ -85,6 +95,10 @@ def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH):
 
             # Single word, alnum only
             if re.fullmatch(r"[A-Za-z0-9]+", value):
+                if allowed_types and type_key:
+                    row_type = (row.get(type_key) or "").strip().lower() or "other"
+                    if row_type not in allowed_types:
+                        continue
                 keywords.append(value.lower())
 
     return keywords
@@ -129,6 +143,16 @@ def parse_file_types(value: str):
         if not ext.startswith("."):
             ext = "." + ext
         types.add(ext)
+    return types or None
+
+def parse_lexicon_types(value: str):
+    if not value:
+        return None
+    types = set()
+    for item in value.split(","):
+        label = item.strip().lower()
+        if label:
+            types.add(label)
     return types or None
 
 def allowed_extension(ext: str, allowed_exts):
@@ -375,6 +399,7 @@ def scan():
     lexicon_path = request.form.get("lexicon_path", DEFAULT_LEXICON_PATH)
     regex_path = request.form.get("regex_path", REGEX_PATTERNS_PATH)
     scenario_mode = request.form.get("scenario_mode", "sit").strip().lower()
+    lexicon_types = parse_lexicon_types(request.form.get("lexicon_types", ""))
     scan_id = request.form.get("scan_id")
     scan_path = request.form.get("path")
     recursive = request.form.get("recursive", "true").lower() == "true"
@@ -594,7 +619,7 @@ def scan():
     keywords = []
     keyword_set = set()
     if scenario_mode == "sit":
-        keywords = load_keywords(lexicon_path)
+        keywords = load_keywords(lexicon_path, lexicon_types)
         keyword_set = set(keywords)
     regex_patterns = load_regex_patterns(regex_path)
     # Keep debug_text focused on extracted document text only.

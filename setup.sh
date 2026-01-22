@@ -19,6 +19,19 @@ brew install tesseract poppler
 PYTHON_BIN=${PYTHON_BIN:-python3.11}
 VENV_DIR=${VENV_DIR:-.venv}
 
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "Expected $PYTHON_BIN to be available, but it was not found."
+  echo "Install Python 3.11 and re-run this script."
+  exit 1
+fi
+
+PYTHON_VERSION_CHECK=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+if [ "$PYTHON_VERSION_CHECK" != "3.11" ]; then
+  echo "Expected Python 3.11, but $PYTHON_BIN reports $PYTHON_VERSION_CHECK."
+  echo "Please install Python 3.11 and re-run this script."
+  exit 1
+fi
+
 echo "Creating virtual environment in '${VENV_DIR}' using '${PYTHON_BIN}'..."
 $PYTHON_BIN -m venv "$VENV_DIR"
 
