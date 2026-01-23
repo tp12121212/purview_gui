@@ -13,7 +13,7 @@ fi
 # ---- 2. Install OS-level dependencies ----
 echo "Installing Tesseract OCR and Poppler (for pdf2image)..."
 brew update
-brew install tesseract poppler
+brew install tesseract poppler sqlite
 
 # ---- 3. Create Python virtual environment ----
 PYTHON_BIN=${PYTHON_BIN:-python3.11}
@@ -49,12 +49,13 @@ if [ -f "requirements.txt" ]; then
   pip install -r requirements.txt
 else
   echo "requirements.txt not found. Installing core deps directly..."
-  pip install flask pytesseract pillow PyPDF2 pycryptodome python-docx openpyxl opencv-python pdf2image regex pandas numpy
+  pip install flask pytesseract pillow PyPDF2 pycryptodome python-docx openpyxl python-pptx opencv-python pdf2image regex extract-msg py7zr rarfile pandas numpy
 fi
 
 # ---- 6. Final info ----
 echo
 echo "=== Setup complete ==="
+echo "SQLite is used for scan persistence; macOS ships with sqlite3, or brew installs it above."
 echo "Virtual environment: $VENV_DIR"
 echo "To activate it in a new terminal, run:"
 echo "  source $VENV_DIR/bin/activate"
