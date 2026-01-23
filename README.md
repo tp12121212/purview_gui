@@ -1,7 +1,7 @@
 # Document Scanner with OCR, Lexicon + Regex Correlation - Setup Guide
 
 ## Project Overview
-This is a complete document scanning system with OCR support and strict lexicon keyword detection. It also processes email files (.eml, .msg), including message bodies and supported attachments.
+This is a complete document scanning system with OCR support and strict lexicon keyword detection. It also processes email files (.eml, .msg), including message bodies and supported attachments. Scan results and SIT outputs are persisted to a local SQLite database by default.
 
 **Components:**
 - `app.py` - Flask backend server
@@ -70,8 +70,9 @@ Server running on http://localhost:5000
 1. **Provide Documents**
    - Upload files via UI or API
    - Or scan a local path on the server using `path` + `recursive`
-   - Supports: PDF, Word (.docx), Excel (.xlsx), JPEG, PNG, TIFF, email (.eml, .msg)
+   - Supports: PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), JPEG, PNG, TIFF, email (.eml, .msg), and archives (.zip, .7z, .rar, .tar.gz)
    - For emails, the body text and supported attachments are extracted and scanned
+   - For archives, each file entry is scanned and reported with container/inner path metadata
 
 2. **Configure Detection**
    - Keywords are loaded from `lexicon_latest.csv` by default
@@ -114,11 +115,13 @@ Python packages:
 - `PyPDF2` - PDF text extraction
 - `python-docx` - Word document processing
 - `openpyxl` - Excel processing
+- `python-pptx` - PowerPoint text extraction
 - `opencv-python` - Image manipulation
 - `pdf2image` - PDF to image conversion
 - `Flask` - Web server framework
 - `extract-msg` - Outlook .msg parsing (body + attachments)
 - `flask-cors` - Allow the local HTML UI to call the backend
+- `py7zr` / `rarfile` - Archive handling
  
 ### lexicon_latest.csv
 Lexicon CSV containing keywords. Only strict two-word, alphanumeric phrases with a single space are used.
@@ -195,9 +198,43 @@ Parameters:
 - output_path: (string) Optional JSONL output file path (append mode)
 - batch_size: (integer) Number of matches to buffer before writing to output_path (default: 500)
 - return_limit: (integer) Max matches to include in response when output_path is set (0 = none)
+- scan_policy_id: (integer) Optional scan policy id to drive scenario-two behaviors
 
 Response additions:
 - scan_log: (string) In-memory scan log returned in the response
+
+### POST /rule-pack/export
+Export a compliant rule pack XML from stored scan/SIT data.
+
+**Request:**
+```
+Content-Type: application/json
+
+{
+  "sit_definition_id": 1
+}
+```
+OR
+```
+{
+  "scan_id": 1
+}
+```
+
+**Response:**
+```
+{
+  "success": true,
+  "rule_pack_xml": "...",
+  "version": "1.0"
+}
+```
+
+### Database
+By default, scan results are stored in `scan_results.db`. Override the path with:
+```
+export PURVIEW_DB_PATH=/path/to/scan_results.db
+```
 - debug_text: (string) Extracted text log when debug_text=true
 - regex/keyword CSVs are generated in the UI from the response matches
 - regex_summary: (array) Scenario 1 aggregated regex matches (deduped with counts, file_count, priority)

@@ -3,6 +3,11 @@ import csv
 import json
 import tempfile
 import sys
+import hashlib
+import sqlite3
+import tarfile
+import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -21,6 +26,9 @@ import openpyxl
 from pdf2image import convert_from_path
 import extract_msg
 import warnings
+import rarfile
+import py7zr
+from pptx import Presentation
 
 if sys.version_info[:2] != (3, 11):
     raise SystemExit("Python 3.11 is required. Please use a 3.11 virtual environment.")
@@ -57,15 +65,149 @@ REGEX_PATTERNS_PATH = "regex_patterns.py"
 PROGRESS_DIR = Path(tempfile.gettempdir()) / "purview_scan_progress"
 RULEPACK_CACHE_PATH = Path("rulepack_cache.json")
 MAX_SIT_FILES = 50
+DB_PATH = Path(os.environ.get("PURVIEW_DB_PATH", "scan_results.db"))
 
 SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".xlsx",
+    ".pdf", ".docx", ".xlsx", ".pptx",
     ".jpg", ".jpeg", ".png", ".tif", ".tiff",
-    ".eml", ".msg"
+    ".eml", ".msg",
+    ".zip", ".7z", ".rar", ".tar", ".tgz", ".tar.gz"
 }
 
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500MB
 MAX_NESTED_DEPTH = 2
+
+# ======================================================
+# Database
+# ======================================================
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS scans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            scenario_mode TEXT NOT NULL,
+            status TEXT NOT NULL,
+            scan_params TEXT NOT NULL
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scan_id INTEGER NOT NULL,
+            source_type TEXT NOT NULL,
+            source_uri TEXT NOT NULL,
+            sha256 TEXT NOT NULL,
+            extracted_text_ref TEXT,
+            FOREIGN KEY(scan_id) REFERENCES scans(id)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS regex_patterns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            pattern TEXT NOT NULL,
+            version TEXT,
+            source_file TEXT
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS lexicon_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            keyword TEXT NOT NULL,
+            type TEXT,
+            source_file TEXT
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS matches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scan_id INTEGER NOT NULL,
+            document_id INTEGER NOT NULL,
+            match_type TEXT NOT NULL,
+            pattern_name TEXT,
+            value TEXT,
+            position INTEGER,
+            context TEXT,
+            nearest_regex TEXT,
+            distance INTEGER,
+            container_path TEXT,
+            inner_path TEXT,
+            FOREIGN KEY(scan_id) REFERENCES scans(id),
+            FOREIGN KEY(document_id) REFERENCES documents(id)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sit_definitions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            publisher TEXT,
+            created_from_scan_id INTEGER NOT NULL,
+            rule_pack_name TEXT NOT NULL,
+            version TEXT,
+            FOREIGN KEY(created_from_scan_id) REFERENCES scans(id)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rule_packs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sit_definition_id INTEGER NOT NULL,
+            xml_blob TEXT NOT NULL,
+            generated_at TEXT NOT NULL,
+            generation_params TEXT NOT NULL,
+            FOREIGN KEY(sit_definition_id) REFERENCES sit_definitions(id)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS labels (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id INTEGER NOT NULL,
+            label_id TEXT,
+            label_name TEXT,
+            source TEXT,
+            applied_at TEXT,
+            status TEXT,
+            FOREIGN KEY(document_id) REFERENCES documents(id)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS scan_policies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            config_json TEXT NOT NULL
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+init_db()
 
 # ======================================================
 # Lexicon loading (single-word only)
@@ -103,6 +245,32 @@ def load_keywords(lexicon_path: str = DEFAULT_LEXICON_PATH, allowed_types=None):
 
     return keywords
 
+def load_lexicon_entries(lexicon_path: str = DEFAULT_LEXICON_PATH):
+    entries = []
+    with open(lexicon_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        type_key = None
+        if reader.fieldnames:
+            for name in reader.fieldnames:
+                if name and name.strip().lower() == "type":
+                    type_key = name
+                    break
+        for row in reader:
+            value = (
+                row.get("keyword")
+                or row.get("phrase")
+                or row.get("value")
+            )
+            if not value:
+                continue
+            value = value.strip()
+            if re.fullmatch(r"[A-Za-z0-9]+", value):
+                entry_type = None
+                if type_key:
+                    entry_type = (row.get(type_key) or "").strip() or None
+                entries.append({"keyword": value.lower(), "type": entry_type})
+    return entries
+
 # ======================================================
 # Regex loading
 # ======================================================
@@ -122,6 +290,44 @@ def load_regex_patterns(regex_path: str = REGEX_PATTERNS_PATH):
         return patterns
     with open(regex_path, encoding="utf-8") as f:
         return json.load(f)
+
+def upsert_regex_patterns(conn, patterns, source_file: str):
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM regex_patterns WHERE source_file = ?", (source_file,))
+    for item in patterns:
+        cursor.execute(
+            """
+            INSERT INTO regex_patterns (name, pattern, version, source_file)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                item.get("name", "Regex"),
+                item.get("pattern", ""),
+                item.get("version"),
+                source_file,
+            ),
+        )
+    conn.commit()
+
+def upsert_lexicon_entries(conn, entries, source_file: str):
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM lexicon_entries WHERE source_file = ?", (source_file,))
+    for entry in entries:
+        cursor.execute(
+            """
+            INSERT INTO lexicon_entries (keyword, type, source_file)
+            VALUES (?, ?, ?)
+            """,
+            (entry["keyword"], entry.get("type"), source_file),
+        )
+    conn.commit()
+
+def sha256_for_path(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 # ======================================================
 # File collection
@@ -191,6 +397,24 @@ def iter_scan_items(files, scan_path: str, recursive: bool, allowed_exts):
 # Text extraction
 # ======================================================
 
+def extract_text_from_office_media(path: Path, media_prefix: str):
+    text = ""
+    if not path.is_file():
+        return text
+    try:
+        with zipfile.ZipFile(path, "r") as archive:
+            for info in archive.infolist():
+                if not info.filename.lower().startswith(media_prefix):
+                    continue
+                if not info.filename.lower().endswith((".png", ".jpg", ".jpeg", ".tif", ".tiff")):
+                    continue
+                with archive.open(info) as image_file:
+                    image = Image.open(image_file)
+                    text += pytesseract.image_to_string(image)
+    except zipfile.BadZipFile:
+        return text
+    return text
+
 def extract_text_from_pdf(path):
     text = ""
     with warnings.catch_warnings(record=True) as caught:
@@ -242,7 +466,9 @@ def extract_text_from_pdf(path):
 
 def extract_text_from_docx(path):
     doc = docx.Document(path)
-    return "\n".join(p.text for p in doc.paragraphs)
+    text = "\n".join(p.text for p in doc.paragraphs)
+    text += extract_text_from_office_media(Path(path), "word/media/")
+    return text
 
 
 def extract_text_from_xlsx(path):
@@ -259,6 +485,17 @@ def extract_text_from_xlsx(path):
 def extract_text_from_image(path):
     img = Image.open(path)
     return pytesseract.image_to_string(img)
+
+def extract_text_from_pptx(path):
+    presentation = Presentation(path)
+    slides_text = []
+    for slide in presentation.slides:
+        for shape in slide.shapes:
+            if hasattr(shape, "text"):
+                slides_text.append(shape.text)
+    text = "\n".join(slides_text)
+    text += extract_text_from_office_media(Path(path), "ppt/media/")
+    return text
 
 def strip_html(text):
     if not text:
@@ -365,6 +602,8 @@ def extract_text_from_file_path(path: Path, depth=0):
         return extract_text_from_docx(str(path))
     if ext == ".xlsx":
         return extract_text_from_xlsx(str(path))
+    if ext == ".pptx":
+        return extract_text_from_pptx(str(path))
     if ext in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
         return extract_text_from_image(str(path))
     if ext == ".eml":
@@ -379,6 +618,106 @@ def extract_text_from_upload(file):
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         file.save(tmp.name)
         return extract_text_from_file_path(Path(tmp.name))
+
+def iter_documents_from_path(path: Path, depth=0, container_path=None, display_name=None):
+    if depth > MAX_NESTED_DEPTH:
+        return
+    ext = path.suffix.lower()
+    archive_exts = {".zip", ".7z", ".rar", ".tar", ".tgz", ".tar.gz"}
+    if ext in archive_exts:
+        container_label = container_path or display_name or str(path)
+        yield from iter_documents_from_archive(
+            path,
+            container_label=container_label,
+            depth=depth,
+        )
+        return
+    text = extract_text_from_file_path(path, depth=depth)
+    yield {
+        "document": display_name or str(path),
+        "text": text,
+        "container_path": container_path,
+        "inner_path": None,
+        "source_path": path,
+        "temp_path": False,
+    }
+
+def iter_documents_from_archive(path: Path, container_label: str, depth=0):
+    ext = path.suffix.lower()
+    if ext == ".zip":
+        with zipfile.ZipFile(path, "r") as archive:
+            for info in archive.infolist():
+                if info.is_dir():
+                    continue
+                inner_name = info.filename
+                with archive.open(info) as inner_file:
+                    yield from iter_documents_from_archive_bytes(
+                        inner_name,
+                        inner_file.read(),
+                        container_label,
+                        depth + 1,
+                    )
+        return
+    if ext in {".tar", ".tgz", ".tar.gz"}:
+        mode = "r:gz" if ext in {".tgz", ".tar.gz"} else "r"
+        with tarfile.open(path, mode) as archive:
+            for member in archive.getmembers():
+                if not member.isfile():
+                    continue
+                inner_file = archive.extractfile(member)
+                if inner_file is None:
+                    continue
+                inner_name = member.name
+                yield from iter_documents_from_archive_bytes(
+                    inner_name,
+                    inner_file.read(),
+                    container_label,
+                    depth + 1,
+                )
+        return
+    if ext == ".rar":
+        with rarfile.RarFile(path) as archive:
+            for info in archive.infolist():
+                if info.isdir():
+                    continue
+                inner_name = info.filename
+                with archive.open(info) as inner_file:
+                    yield from iter_documents_from_archive_bytes(
+                        inner_name,
+                        inner_file.read(),
+                        container_label,
+                        depth + 1,
+                    )
+        return
+    if ext == ".7z":
+        with py7zr.SevenZipFile(path, "r") as archive:
+            for inner_name, bio in archive.readall().items():
+                data = bio.read()
+                yield from iter_documents_from_archive_bytes(
+                    inner_name,
+                    data,
+                    container_label,
+                    depth + 1,
+                )
+        return
+
+def iter_documents_from_archive_bytes(inner_name, data, container_label, depth):
+    if depth > MAX_NESTED_DEPTH:
+        return
+    suffix = Path(inner_name).suffix.lower()
+    if suffix not in SUPPORTED_EXTENSIONS:
+        return
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(data)
+        tmp.flush()
+        yield {
+            "document": f"{container_label}:{inner_name}",
+            "text": extract_text_from_file_path(Path(tmp.name), depth=depth),
+            "container_path": container_label,
+            "inner_path": inner_name,
+            "source_path": Path(tmp.name),
+            "temp_path": True,
+        }
 
 # ======================================================
 # Proximity logic
@@ -402,6 +741,100 @@ def nearest_regex_info(start, end, regex_hits):
 
     return closest, min_distance
 
+def build_rule_pack_xml(sit_outputs, sit_config, matched_patterns, rule_pack_bytes=None):
+    regex_xml_entries = []
+    for r in matched_patterns:
+        regex_name = html_lib.escape(r.get("name", "Regex"))
+        regex_pattern = html_lib.escape(r.get("pattern", ""))
+        regex_xml_entries.append(
+            f'    <Regex name="{regex_name}" pattern="{regex_pattern}" />'
+        )
+    regex_xml = "\n".join(regex_xml_entries) if regex_xml_entries else "    <!-- No regex patterns matched -->"
+
+    if rule_pack_bytes:
+        root = ET.fromstring(rule_pack_bytes)
+        rule_pack_info = root.find("RulePackInfo")
+        if rule_pack_info is None:
+            rule_pack_info = ET.SubElement(root, "RulePackInfo")
+        if sit_outputs["rule_pack_name"]:
+            rule_pack_info.set("name", sit_outputs["rule_pack_name"])
+        if sit_outputs["sit_publisher"]:
+            rule_pack_info.set("publisher", sit_outputs["sit_publisher"])
+        if sit_config.get("increment_rule_pack_version"):
+            current_version = rule_pack_info.get("version", "")
+            parts = current_version.split(".") if current_version else []
+            if parts and all(part.isdigit() for part in parts):
+                parts[-1] = str(int(parts[-1]) + 1)
+                rule_pack_info.set("version", ".".join(parts))
+
+        sit_parent = root.find("SensitiveInformationTypes")
+        if sit_parent is None:
+            sit_parent = ET.SubElement(root, "SensitiveInformationTypes")
+
+        existing = None
+        for child in sit_parent.findall("SensitiveInformationType"):
+            if child.get("name") == sit_outputs["sit_name"]:
+                existing = child
+                break
+
+        if sit_config.get("rule_pack_mode") == "update":
+            if existing is None:
+                raise ValueError(f"SIT not found in rule pack: {sit_outputs['sit_name']}")
+            target = existing
+        else:
+            if existing is not None:
+                raise ValueError(f"SIT already exists in rule pack: {sit_outputs['sit_name']}")
+            target = ET.SubElement(
+                sit_parent, "SensitiveInformationType", {"name": sit_outputs["sit_name"]}
+            )
+
+        if sit_outputs["sit_description"]:
+            description = target.find("Description")
+            if description is None:
+                description = ET.SubElement(target, "Description")
+            description.text = sit_outputs["sit_description"]
+
+        regexes = target.find("Regexes")
+        if regexes is None:
+            regexes = ET.SubElement(target, "Regexes")
+        else:
+            regexes.clear()
+        if matched_patterns:
+            for r in matched_patterns:
+                ET.SubElement(
+                    regexes,
+                    "Regex",
+                    {
+                        "name": r.get("name", "Regex"),
+                        "pattern": r.get("pattern", ""),
+                    },
+                )
+        else:
+            regexes.append(ET.Comment("No regex patterns matched"))
+
+        xml_text = ET.tostring(
+            root, encoding="utf-8", xml_declaration=True
+        ).decode("utf-8")
+        version = rule_pack_info.get("version", "1.0")
+        return xml_text, version
+
+    xml_text = (
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<RulePack>\n"
+        f"  <RulePackInfo name=\"{html_lib.escape(sit_outputs['rule_pack_name'])}\" "
+        f"publisher=\"{html_lib.escape(sit_outputs['sit_publisher'])}\" version=\"1.0\" />\n"
+        "  <SensitiveInformationTypes>\n"
+        f"    <SensitiveInformationType name=\"{html_lib.escape(sit_outputs['sit_name'])}\">\n"
+        f"      <Description>{html_lib.escape(sit_outputs['sit_description'])}</Description>\n"
+        "      <Regexes>\n"
+        f"{regex_xml}\n"
+        "      </Regexes>\n"
+        "    </SensitiveInformationType>\n"
+        "  </SensitiveInformationTypes>\n"
+        "</RulePack>\n"
+    )
+    return xml_text, "1.0"
+
 # ======================================================
 # API endpoint
 # ======================================================
@@ -412,6 +845,7 @@ def scan():
     regex_path = request.form.get("regex_path", REGEX_PATTERNS_PATH)
     scenario_mode = request.form.get("scenario_mode", "sit").strip().lower()
     lexicon_types = parse_lexicon_types(request.form.get("lexicon_types", ""))
+    scan_policy_id = request.form.get("scan_policy_id")
     scan_id = request.form.get("scan_id")
     scan_path = request.form.get("path")
     recursive = request.form.get("recursive", "true").lower() == "true"
@@ -434,6 +868,44 @@ def scan():
             "success": False,
             "error": "scenario_mode must be 'sit' or 'scan_only'"
         }), 400
+
+    conn = get_db_connection()
+    scan_params = {
+        "lexicon_path": lexicon_path,
+        "regex_path": regex_path,
+        "scan_policy_id": scan_policy_id,
+        "scan_id": scan_id,
+        "scan_path": scan_path,
+        "recursive": recursive,
+        "log_to_stdout": log_to_stdout,
+        "debug_text": debug_text,
+        "allowed_exts": sorted(list(allowed_exts)) if allowed_exts else None,
+        "output_path": output_path,
+        "batch_size": batch_size,
+        "return_limit": return_limit,
+    }
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO scans (created_at, scenario_mode, status, scan_params)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            datetime.now(timezone.utc).isoformat(),
+            scenario_mode,
+            "running",
+            json.dumps(scan_params),
+        ),
+    )
+    db_scan_id = cursor.lastrowid
+    conn.commit()
+
+    def set_scan_status(status):
+        cursor.execute(
+            "UPDATE scans SET status = ? WHERE id = ?",
+            (status, db_scan_id),
+        )
+        conn.commit()
 
     progress_path = None
     if scan_id and re.fullmatch(r"[A-Za-z0-9_-]{6,64}", scan_id):
@@ -509,6 +981,8 @@ def scan():
             "error": f"Scenario 1 requires 1-{MAX_SIT_FILES} files. Found {total_documents}."
         })
         cleanup_temp_files()
+        set_scan_status("error")
+        conn.close()
         return jsonify({
             "success": False,
             "error": f"Scenario 1 requires 1-{MAX_SIT_FILES} files. Found {total_documents}.",
@@ -538,6 +1012,8 @@ def scan():
             "error": f"regex_path not found: {regex_path}"
         })
         cleanup_temp_files()
+        set_scan_status("error")
+        conn.close()
         return jsonify({
             "success": False,
             "error": f"regex_path not found: {regex_path}",
@@ -551,6 +1027,9 @@ def scan():
         keywords = load_keywords(lexicon_path, lexicon_types)
         keyword_set = set(keywords)
     regex_patterns = load_regex_patterns(regex_path)
+    upsert_regex_patterns(conn, regex_patterns, regex_path)
+    if scenario_mode == "sit":
+        upsert_lexicon_entries(conn, load_lexicon_entries(lexicon_path), lexicon_path)
     regex_pattern_map = {p.get("name", "Regex"): p.get("pattern", "") for p in regex_patterns}
     # Keep debug_text focused on extracted document text only.
 
@@ -613,136 +1092,221 @@ def scan():
         documents_scanned += 1
         try:
             if source == "upload":
-                document = item.filename
+                temp_path = save_uploaded_file(item, Path(item.filename).suffix.lower() or ".bin")
+                if not temp_path:
+                    continue
+                doc_entries = iter_documents_from_path(
+                    Path(temp_path),
+                    display_name=item.filename,
+                )
+                source_type = "upload"
+                source_uri = item.filename
             else:
-                document = str(item)
+                doc_entries = iter_documents_from_path(item)
+                source_type = "path"
+                source_uri = str(item)
 
-            if total_documents > 0:
-                write_progress({
-                    "status": "running",
-                    "current": documents_scanned,
-                    "total": total_documents,
-                    "percent": int((documents_scanned / total_documents) * 100),
-                    "current_document": document
-                })
+            for doc_entry in doc_entries:
+                if doc_entry["temp_path"]:
+                    temp_files.append(str(doc_entry["source_path"]))
+                document = doc_entry["document"]
+                text = doc_entry["text"]
+                container_path = doc_entry["container_path"]
+                inner_path = doc_entry["inner_path"]
+                source_path = doc_entry["source_path"]
 
-            if source == "upload":
-                text = extract_text_from_upload(item)
-            else:
-                text = extract_text_from_file_path(item)
-
-            if debug_text:
-                log_debug_text(f"extracted_text_begin: {document}")
-                log_debug_text(text)
-                log_debug_text(f"extracted_text_end: {document}")
-
-            # -------------------------
-            # Regex hits
-            # -------------------------
-            regex_hits = []
-            for r in regex_patterns:
-                for m in re.finditer(r["pattern"], text, re.IGNORECASE | re.DOTALL):
-                    regex_hits.append({
-                        "name": r["name"],
-                        "start": m.start(),
-                        "end": m.end(),
-                        "value": m.group(0)
+                if total_documents > 0:
+                    write_progress({
+                        "status": "running",
+                        "current": documents_scanned,
+                        "total": total_documents,
+                        "percent": int((documents_scanned / total_documents) * 100),
+                        "current_document": document
                     })
 
-            # -------------------------
-            # Keyword hits (strict), only after a regex match exists
-            # -------------------------
-            keyword_hits = []
-            if regex_hits and scenario_mode == "sit":
-                token_iter = list(re.finditer(r"[A-Za-z0-9]+", text))
-                for idx in range(len(token_iter) - 1):
-                    first = token_iter[idx]
-                    second = token_iter[idx + 1]
-                    between = text[first.end():second.start()]
-                    if between != " ":
-                        continue
-                    w1 = first.group(0).lower()
-                    w2 = second.group(0).lower()
-                    if w1 in keyword_set and w2 in keyword_set:
-                        keyword_hits.append({
-                            "phrase": f"{w1} {w2}",
-                            "start": first.start(),
-                            "end": second.end()
+                if debug_text:
+                    log_debug_text(f"extracted_text_begin: {document}")
+                    log_debug_text(text)
+                    log_debug_text(f"extracted_text_end: {document}")
+
+                file_sha256 = sha256_for_path(source_path)
+                cursor.execute(
+                    """
+                    INSERT INTO documents
+                        (scan_id, source_type, source_uri, sha256, extracted_text_ref)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        db_scan_id,
+                        source_type,
+                        source_uri if inner_path is None else document,
+                        file_sha256,
+                        None,
+                    ),
+                )
+                document_id = cursor.lastrowid
+                conn.commit()
+
+                # -------------------------
+                # Regex hits
+                # -------------------------
+                regex_hits = []
+                for r in regex_patterns:
+                    for m in re.finditer(r["pattern"], text, re.IGNORECASE | re.DOTALL):
+                        regex_hits.append({
+                            "name": r["name"],
+                            "start": m.start(),
+                            "end": m.end(),
+                            "value": m.group(0)
                         })
 
-            logged_file = False
-            for r in regex_hits:
-                if not logged_file:
-                    log(f"matched_file: {document}")
-                    logged_file = True
-                log(
-                    f"match: regex={r['name']} "
-                    f"document={document} "
-                    f"value={r['value']}"
-                )
-                record_match({
-                    "type": "regex",
-                    "fallback": False,
-                    "regex_name": r["name"],
-                    "document": document,
-                    "position": r["start"],
-                    "value": r["value"],
-                    "context": text[max(0, r["start"]-50):r["end"]+50]
-                })
-                if scenario_mode == "sit":
-                    key = r["name"]
-                    summary = regex_summary.setdefault(
-                        key,
-                        {
-                            "regex_name": r["name"],
-                            "pattern": regex_pattern_map.get(r["name"], ""),
-                            "total_count": 0,
-                            "documents": set(),
-                        },
-                    )
-                    summary["total_count"] += 1
-                    summary["documents"].add(document)
+                # -------------------------
+                # Keyword hits (strict), only after a regex match exists
+                # -------------------------
+                keyword_hits = []
+                if regex_hits and scenario_mode == "sit":
+                    token_iter = list(re.finditer(r"[A-Za-z0-9]+", text))
+                    for idx in range(len(token_iter) - 1):
+                        first = token_iter[idx]
+                        second = token_iter[idx + 1]
+                        between = text[first.end():second.start()]
+                        if between != " ":
+                            continue
+                        w1 = first.group(0).lower()
+                        w2 = second.group(0).lower()
+                        if w1 in keyword_set and w2 in keyword_set:
+                            keyword_hits.append({
+                                "phrase": f"{w1} {w2}",
+                                "start": first.start(),
+                                "end": second.end()
+                            })
 
-            for k in keyword_hits:
-                if not logged_file:
-                    log(f"matched_file: {document}")
-                    logged_file = True
-                nearest_name = None
-                nearest_dist = None
-                if regex_hits:
-                    nearest_name, nearest_dist = nearest_regex_info(
-                        k["start"], k["end"], regex_hits
+                logged_file = False
+                for r in regex_hits:
+                    if not logged_file:
+                        log(f"matched_file: {document}")
+                        logged_file = True
+                    log(
+                        f"match: regex={r['name']} "
+                        f"document={document} "
+                        f"value={r['value']}"
                     )
-                log(
-                    f"match: keyword={k['phrase']} "
-                    f"document={document}"
-                )
-                record_match({
-                    "type": "keyword",
-                    "fallback": False,
-                    "phrase": k["phrase"],
-                    "document": document,
-                    "position": k["start"],
-                    "nearest_regex": nearest_name,
-                    "nearest_regex_distance": nearest_dist,
-                    "context": text[max(0, k["start"]-50):k["end"]+50]
-                })
-                if scenario_mode == "sit":
-                    key = k["phrase"]
-                    summary = keyword_summary.setdefault(
-                        key,
-                        {
-                            "phrase": k["phrase"],
-                            "total_count": 0,
-                            "documents": set(),
-                        },
+                    match_payload = {
+                        "type": "regex",
+                        "fallback": False,
+                        "regex_name": r["name"],
+                        "document": document,
+                        "position": r["start"],
+                        "value": r["value"],
+                        "context": text[max(0, r["start"]-50):r["end"]+50],
+                        "container_path": container_path,
+                        "inner_path": inner_path,
+                    }
+                    record_match(match_payload)
+                    cursor.execute(
+                        """
+                        INSERT INTO matches (
+                            scan_id, document_id, match_type, pattern_name, value,
+                            position, context, nearest_regex, distance, container_path, inner_path
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            db_scan_id,
+                            document_id,
+                            "regex",
+                            r["name"],
+                            r["value"],
+                            r["start"],
+                            match_payload["context"],
+                            None,
+                            None,
+                            container_path,
+                            inner_path,
+                        ),
                     )
-                    summary["total_count"] += 1
-                    summary["documents"].add(document)
+                    conn.commit()
+                    if scenario_mode == "sit":
+                        key = r["name"]
+                        summary = regex_summary.setdefault(
+                            key,
+                            {
+                                "regex_name": r["name"],
+                                "pattern": regex_pattern_map.get(r["name"], ""),
+                                "total_count": 0,
+                                "documents": set(),
+                            },
+                        )
+                        summary["total_count"] += 1
+                        summary["documents"].add(document)
+
+                for k in keyword_hits:
+                    if not logged_file:
+                        log(f"matched_file: {document}")
+                        logged_file = True
+                    nearest_name = None
+                    nearest_dist = None
+                    if regex_hits:
+                        nearest_name, nearest_dist = nearest_regex_info(
+                            k["start"], k["end"], regex_hits
+                        )
+                    log(
+                        f"match: keyword={k['phrase']} "
+                        f"document={document}"
+                    )
+                    match_payload = {
+                        "type": "keyword",
+                        "fallback": False,
+                        "phrase": k["phrase"],
+                        "document": document,
+                        "position": k["start"],
+                        "nearest_regex": nearest_name,
+                        "nearest_regex_distance": nearest_dist,
+                        "context": text[max(0, k["start"]-50):k["end"]+50],
+                        "container_path": container_path,
+                        "inner_path": inner_path,
+                    }
+                    record_match(match_payload)
+                    cursor.execute(
+                        """
+                        INSERT INTO matches (
+                            scan_id, document_id, match_type, pattern_name, value,
+                            position, context, nearest_regex, distance, container_path, inner_path
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            db_scan_id,
+                            document_id,
+                            "keyword",
+                            k["phrase"],
+                            None,
+                            k["start"],
+                            match_payload["context"],
+                            nearest_name,
+                            nearest_dist,
+                            container_path,
+                            inner_path,
+                        ),
+                    )
+                    conn.commit()
+                    if scenario_mode == "sit":
+                        key = k["phrase"]
+                        summary = keyword_summary.setdefault(
+                            key,
+                            {
+                                "phrase": k["phrase"],
+                                "total_count": 0,
+                                "documents": set(),
+                            },
+                        )
+                        summary["total_count"] += 1
+                        summary["documents"].add(document)
 
         except Exception as e:
-            errors.append(f"{document}: {str(e)}")
-            log(f"error: document={document} error={e}")
+            error_doc = document if "document" in locals() else "unknown"
+            errors.append(f"{error_doc}: {str(e)}")
+            log(f"error: document={error_doc} error={e}")
 
     if output_file and batch_results:
         output_file.write("\n".join(json.dumps(r) for r in batch_results))
@@ -788,14 +1352,6 @@ def scan():
             matched_patterns = [
                 r for r in regex_patterns if r.get("name") in matched_regex_names
             ]
-            regex_xml_entries = []
-            for r in matched_patterns:
-                regex_name = html_lib.escape(r.get("name", "Regex"))
-                regex_pattern = html_lib.escape(r.get("pattern", ""))
-                regex_xml_entries.append(
-                    f'    <Regex name="{regex_name}" pattern="{regex_pattern}" />'
-                )
-            regex_xml = "\n".join(regex_xml_entries) if regex_xml_entries else "    <!-- No regex patterns matched -->"
 
             uploaded_rule_pack = sit_config["rule_pack_file"]
             rule_pack_base64 = sit_config["rule_pack_base64"]
@@ -806,6 +1362,8 @@ def scan():
                 try:
                     rule_pack_bytes = base64.b64decode(rule_pack_base64)
                 except (ValueError, TypeError) as exc:
+                    set_scan_status("error")
+                    conn.close()
                     return jsonify({
                         "success": False,
                         "error": f"invalid rule_pack_base64: {exc}",
@@ -815,107 +1373,31 @@ def scan():
 
             if rule_pack_bytes:
                 try:
-                    root = ET.fromstring(rule_pack_bytes)
-                except ET.ParseError as exc:
+                    sit_outputs["rule_pack_xml"], sit_outputs["rule_pack_version"] = build_rule_pack_xml(
+                        sit_outputs,
+                        sit_config,
+                        matched_patterns,
+                        rule_pack_bytes=rule_pack_bytes,
+                    )
+                except (ET.ParseError, ValueError) as exc:
                     write_progress({
                         "status": "error",
                         "error": f"invalid rule pack xml: {exc}"
                     })
                     cleanup_temp_files()
+                    set_scan_status("error")
+                    conn.close()
                     return jsonify({
                         "success": False,
                         "error": f"invalid rule pack xml: {exc}",
                         "scan_log": "\n".join(log_lines),
                         "debug_text": "\n".join(debug_text_lines) if debug_text else "",
                     }), 400
-
-                rule_pack_info = root.find("RulePackInfo")
-                if rule_pack_info is None:
-                    rule_pack_info = ET.SubElement(root, "RulePackInfo")
-                if sit_outputs["rule_pack_name"]:
-                    rule_pack_info.set("name", sit_outputs["rule_pack_name"])
-                if sit_outputs["sit_publisher"]:
-                    rule_pack_info.set("publisher", sit_outputs["sit_publisher"])
-                if sit_config["increment_rule_pack_version"]:
-                    current_version = rule_pack_info.get("version", "")
-                    parts = current_version.split(".") if current_version else []
-                    if parts and all(part.isdigit() for part in parts):
-                        parts[-1] = str(int(parts[-1]) + 1)
-                        rule_pack_info.set("version", ".".join(parts))
-
-                sit_parent = root.find("SensitiveInformationTypes")
-                if sit_parent is None:
-                    sit_parent = ET.SubElement(root, "SensitiveInformationTypes")
-
-                existing = None
-                for child in sit_parent.findall("SensitiveInformationType"):
-                    if child.get("name") == sit_outputs["sit_name"]:
-                        existing = child
-                        break
-
-                if sit_config["rule_pack_mode"] == "update":
-                    if existing is None:
-                        return jsonify({
-                            "success": False,
-                            "error": f"SIT not found in rule pack: {sit_outputs['sit_name']}",
-                            "scan_log": "\n".join(log_lines),
-                            "debug_text": "\n".join(debug_text_lines) if debug_text else "",
-                        }), 400
-                    target = existing
-                else:
-                    if existing is not None:
-                        return jsonify({
-                            "success": False,
-                            "error": f"SIT already exists in rule pack: {sit_outputs['sit_name']}",
-                            "scan_log": "\n".join(log_lines),
-                            "debug_text": "\n".join(debug_text_lines) if debug_text else "",
-                        }), 400
-                    target = ET.SubElement(
-                        sit_parent, "SensitiveInformationType", {"name": sit_outputs["sit_name"]}
-                    )
-
-                if sit_outputs["sit_description"]:
-                    description = target.find("Description")
-                    if description is None:
-                        description = ET.SubElement(target, "Description")
-                    description.text = sit_outputs["sit_description"]
-
-                regexes = target.find("Regexes")
-                if regexes is None:
-                    regexes = ET.SubElement(target, "Regexes")
-                else:
-                    regexes.clear()
-                if matched_patterns:
-                    for r in matched_patterns:
-                        ET.SubElement(
-                            regexes,
-                            "Regex",
-                            {
-                                "name": r.get("name", "Regex"),
-                                "pattern": r.get("pattern", ""),
-                            },
-                        )
-                else:
-                    regexes.append(ET.Comment("No regex patterns matched"))
-
-                sit_outputs["rule_pack_xml"] = ET.tostring(
-                    root, encoding="utf-8", xml_declaration=True
-                ).decode("utf-8")
             else:
-                sit_outputs["rule_pack_xml"] = (
-                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-                    "<RulePack>\n"
-                    f"  <RulePackInfo name=\"{html_lib.escape(sit_outputs['rule_pack_name'])}\" "
-                    f"publisher=\"{html_lib.escape(sit_outputs['sit_publisher'])}\" version=\"1.0\" />\n"
-                    "  <SensitiveInformationTypes>\n"
-                    f"    <SensitiveInformationType name=\"{html_lib.escape(sit_outputs['sit_name'])}\">\n"
-                    f"      <Description>{html_lib.escape(sit_outputs['sit_description'])}</Description>\n"
-                    "      <Regexes>\n"
-                    f"{regex_xml}\n"
-                    "      </Regexes>\n"
-                    "    </SensitiveInformationType>\n"
-                    "  </SensitiveInformationTypes>\n"
-                    "</RulePack>\n"
+                sit_outputs["rule_pack_xml"], sit_outputs["rule_pack_version"] = build_rule_pack_xml(
+                    sit_outputs,
+                    sit_config,
+                    matched_patterns,
                 )
 
             sit_outputs["powershell_script"] = (
@@ -927,6 +1409,45 @@ def scan():
                 "(Get-Content -Path $rulePackPath -Encoding Byte -ReadCount 0)\n"
             )
 
+            cursor.execute(
+                """
+                INSERT INTO sit_definitions
+                    (name, description, publisher, created_from_scan_id, rule_pack_name, version)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    sit_outputs["sit_name"],
+                    sit_outputs["sit_description"],
+                    sit_outputs["sit_publisher"],
+                    db_scan_id,
+                    sit_outputs["rule_pack_name"],
+                    sit_outputs.get("rule_pack_version", "1.0"),
+                ),
+            )
+            sit_definition_id = cursor.lastrowid
+            cursor.execute(
+                """
+                INSERT INTO rule_packs
+                    (sit_definition_id, xml_blob, generated_at, generation_params)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    sit_definition_id,
+                    sit_outputs["rule_pack_xml"],
+                    datetime.now(timezone.utc).isoformat(),
+                    json.dumps({
+                        "rule_pack_mode": sit_config.get("rule_pack_mode"),
+                        "increment_rule_pack_version": sit_config.get("increment_rule_pack_version"),
+                        "rule_pack_base64": bool(sit_config.get("rule_pack_base64")),
+                        "rule_pack_file": (
+                            sit_config.get("rule_pack_file").filename
+                            if sit_config.get("rule_pack_file") else None
+                        ),
+                    }),
+                ),
+            )
+            conn.commit()
+
     cleanup_temp_files()
     write_progress({
         "status": "complete",
@@ -935,9 +1456,12 @@ def scan():
         "percent": 100,
         "current_document": ""
     })
+    set_scan_status("complete")
+    conn.close()
 
     return jsonify({
         "success": True,
+        "db_scan_id": db_scan_id,
         "scenario_mode": scenario_mode,
         "sit_outputs": sit_outputs,
         "documents_scanned": documents_scanned,
@@ -1015,6 +1539,123 @@ def rulepack_cache():
             "error": f"unable to read rule pack cache: {exc}"
         }), 400
     return jsonify({"success": True, "cache": data})
+
+@app.route("/rule-pack/export", methods=["POST"])
+def export_rule_pack():
+    payload = request.get_json(silent=True) or request.form
+    sit_definition_id = payload.get("sit_definition_id")
+    scan_id_value = payload.get("scan_id")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    sit_row = None
+
+    if sit_definition_id:
+        cursor.execute(
+            "SELECT * FROM sit_definitions WHERE id = ?",
+            (sit_definition_id,),
+        )
+        sit_row = cursor.fetchone()
+    elif scan_id_value:
+        try:
+            scan_id_int = int(scan_id_value)
+        except (TypeError, ValueError):
+            conn.close()
+            return jsonify({
+                "success": False,
+                "error": "scan_id must be an integer database scan id",
+            }), 400
+        cursor.execute(
+            """
+            SELECT * FROM sit_definitions
+            WHERE created_from_scan_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (scan_id_int,),
+        )
+        sit_row = cursor.fetchone()
+
+    if sit_row is None:
+        conn.close()
+        return jsonify({
+            "success": False,
+            "error": "sit_definition_id or scan_id not found",
+        }), 404
+
+    cursor.execute(
+        """
+        SELECT * FROM rule_packs
+        WHERE sit_definition_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (sit_row["id"],),
+    )
+    rule_pack_row = cursor.fetchone()
+    if rule_pack_row:
+        conn.close()
+        return jsonify({
+            "success": True,
+            "sit_definition_id": sit_row["id"],
+            "rule_pack_xml": rule_pack_row["xml_blob"],
+        })
+
+    cursor.execute(
+        """
+        SELECT DISTINCT pattern_name FROM matches
+        WHERE scan_id = ? AND match_type = 'regex'
+        """,
+        (sit_row["created_from_scan_id"],),
+    )
+    matched_names = {row["pattern_name"] for row in cursor.fetchall()}
+    matched_patterns = []
+    if matched_names:
+        cursor.execute(
+            """
+            SELECT name, pattern FROM regex_patterns
+            WHERE name IN ({})
+            """.format(",".join("?" for _ in matched_names)),
+            tuple(matched_names),
+        )
+        matched_patterns = [dict(row) for row in cursor.fetchall()]
+
+    sit_outputs = {
+        "sit_name": sit_row["name"],
+        "sit_description": sit_row["description"] or "",
+        "sit_publisher": sit_row["publisher"] or "Purview Custom",
+        "rule_pack_name": sit_row["rule_pack_name"],
+    }
+    sit_config = {
+        "rule_pack_mode": "new",
+        "increment_rule_pack_version": True,
+    }
+    rule_pack_xml, version = build_rule_pack_xml(
+        sit_outputs,
+        sit_config,
+        matched_patterns,
+    )
+    cursor.execute(
+        """
+        INSERT INTO rule_packs
+            (sit_definition_id, xml_blob, generated_at, generation_params)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            sit_row["id"],
+            rule_pack_xml,
+            datetime.now(timezone.utc).isoformat(),
+            json.dumps({"generated_by": "rule-pack-export"}),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({
+        "success": True,
+        "sit_definition_id": sit_row["id"],
+        "rule_pack_xml": rule_pack_xml,
+        "version": version,
+    })
 
 @app.route("/progress/<scan_id>", methods=["GET"])
 def progress(scan_id):
