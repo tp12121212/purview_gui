@@ -29,10 +29,10 @@ patterns = [
         'name': 'australia_passport_number_latest',
         'pattern': r"(?i)DOCUMENT[\s\S]{0,200}(?:P[A-E]|RA|N|M)[0-9]{7}|(?:P[A-E]|RA|N|M)[0-9]{7}[\s\S]{0,200}DOCUMENT",
     },
-     {
+    {
         'name': 'australia_passport_number_latest',
         'pattern': r"(?i)(?:\b(?:DOCUMENT(?:\s*(?:NO|NUMBER))?|PASSPORT(?:\s*(?:NO|NUMBER))?)\b[\s\S]{0,200}\b(?:P[A-E]|RA|N|M)\d{7}\b|\b(?:P[A-E]|RA|N|M)\d{7}\b[\s\S]{0,200}\b(?:DOCUMENT(?:\s*(?:NO|NUMBER))?|PASSPORT(?:\s*(?:NO|NUMBER))?)\b)",
-    }
+    },
     {
         'name': 'australian_address',
         'pattern': r"(?:^|[\s,;\:\(\)\[\]\"\'])((\d{1,6}\s+[A-Za-z0-9]+\s+(St|Street|Rd|Road|Ave|Avenue|Ct|Court|Crt|Ln|Lane|Blvd|Boulevard|Pl|Place|Terrace|Terr|Cres|Crescent|Dr|Drive|Pde|Parade|Way|Wk|Walk)))(?:$|[\s,\;\:\(\)\[\]\"\']|\.\s|\.$)",
