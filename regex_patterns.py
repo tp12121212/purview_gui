@@ -6,28 +6,16 @@ patterns = [
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((EBA|EA|LP|33|62|99)\d{11,20})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     },
     {
-        'name': 'australia_bank_account_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(([0-9]{6,10}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'australia_bank_account_number_bsb',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{3}-\d{3}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'australia_drivers_license_number_Copy',
-        'pattern': r"(?i)\b((\d{2}[ -]?\d{2}[ -]?\d{4})|(\d{3}[ -]?\d{3}[ -]?\d{3,4})|(\d{1}[ -]?\d{3}[ -]?\d{3}[ -]?\d{3})|([A-Za-z]\d{5})|([A-Za-z]{2}\d{4})|(\d{7})|(\d{4}[A-Za-z]{2}))\b",
-    },
-    {
-        'name': 'australia_passport_number_Copy',
-        'pattern': r"(?i)\b(([AC-FNUX]|P[A-FUWXZ])\d{7})\b",
-    },
-    {
-        'name': 'australia_passport_number_custom',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((([AC-FNUX]|P[A-FUWXZ])\d{7}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
+        'name': 'qld_drivers_license_number',
+        'pattern': r"(?is)\bLICEN[CS]E\b[\s\S]{0,80}?\b(?:NO\.?|NO|NUMBER|#)?\b[\s\S]{0,40}?(\d{3}\s\d{3}\s\d{3})[\s\S]{0,200}?queensland"
     },
     {
         'name': 'australia_passport_number_latest',
         'pattern': r"(?i)DOCUMENT[\s\S]{0,200}(?:P[A-E]|RA|N|M)[0-9]{7}|(?:P[A-E]|RA|N|M)[0-9]{7}[\s\S]{0,200}DOCUMENT",
+    },
+    {
+        'name': 'nsw_drivers_licence_number_context',
+        'pattern': r"(?is)\bWALES\b[\s\S]{0,300}?(\d\s\d{3}\s\d{3}\s\d{3})[\s\S]{0,300}?\bNSW\b",
     },
     {
         'name': 'australia_passport_number_latest',
@@ -69,35 +57,7 @@ patterns = [
         'name': 'CEP_SQLServerConnectionString',
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((User Id|User ID|uid|UserId)[\x20-\x7F]{1,200}(Password|[^a-z]pwd)=[^$%>@\";\[\{][^;/\"]{7,128}(;|\")))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     },
-    {
-        'name': 'Date',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Email',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,7})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'ipv4_address',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})(?:/(?:[0-9]|[1-2]\d|3[0-2]))?(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'nab_bank_bsb',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(08[2-4](?:[- ]?\d{3}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'NSW_Drivers_Licence_Card_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])([0-9][ ][0-9]{3}[ ][0-9]{3}[ ][0-9]{3})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'NSW_Drivers_Licence_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((?:[0-9]{8}|(?-i:[0-9]{4}[A-Z]{2})))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'page_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((Page 1 of ([1-9]|1[0-9]|20)))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
+ {
         'name': 'Ranker_CSCAN_AZURE0020_0eae114f_baad_4dba_a100_c5b34d217964_60068066_CEP2_0',
         'pattern': "\\(\\?i\\)\\(\\^\\|\\[\\^a\\-z\\]\\)\\(DB_\\[a\\-z\\]\\*\\?NAME\\|initial\\ catalog\\|database\\(name\\)\\?\\)\\(\\\\s\\{0,4\\}=\\\\s\\{0,4\\}\\|\\[\"\\\\",
     },
@@ -180,33 +140,5 @@ patterns = [
     {
         'name': 'Scanner_SymmetricKey360_SymmetricKey_31201899_CEP2_0',
         'pattern': r"\(\?i\)\[\^\\w/\\\+\\\.\\\-\$,\\\]\(\[a\-z0\-9/\\\+\]\{60\}\)\[\^\\w/\\\+\\\.\\\-\$,\\\]",
-    },
-    {
-        'name': 'statement_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((Statement No\. (?:[1-9]|[1-9][0-9]|1[0-9]{2}|200)\b))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Stgeorge_bank_statement_supporting_regex',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((112|113|114|115|116|117|118|119|330|332|333|334|335|336)[ -]?\d{3})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'transaction_amount',
-        'pattern': r"\\b\(\$\?\-\?\\d\{1,3\}\(,\\d\{3\}\)\{0,3\}\\\.\\d\{2\}\\b\)\\b",
-    },
-    {
-        'name': 'URL',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(https?:\/\/[^\s]*)(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'URL_Password',
-        'pattern': "\\[a\\-zA\\-Z\\]\\{3,10\\}://\\[\\^/\\\\s:@\\]\\{3,20\\}:\\[\\^/\\\\s:@\\]\\{3,20\\}@\\.\\{1,100\\}\\[\"\\\\",
-    },
-    {
-        'name': 'vic_australia_drivers_license_number',
-        'pattern': r"(?is)\bLICENCE\b.*?(\d{9})",
-    },
-    {
-        'name': 'Westpac_statement_bsb_regex',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((03[2-9]|73[0-9])[ -]?\d{3}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     }
 ]

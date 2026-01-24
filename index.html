@@ -366,6 +366,29 @@
             margin-bottom: 10px;
         }
 
+        .match summary {
+            list-style: none;
+            cursor: pointer;
+        }
+
+        .match summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .match-summary {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .match-summary .match-title {
+            margin-bottom: 0;
+        }
+
+        .match-body {
+            margin-top: 10px;
+        }
+
         .match.muted {
             background: #fff6e6;
             border-color: #fcd34d;
@@ -1480,13 +1503,18 @@
                 matchesList.innerHTML = '<div class="helper">No matches found.</div>';
             } else {
                 matchesList.innerHTML = results.matches.map(match => `
-                    <div class="match ${match.rejected ? 'muted' : ''}">
-                        <div class="match-title">${escapeHtml(match.type || 'keyword').toUpperCase()}</div>
-                        <div><strong>Match:</strong> ${escapeHtml(match.phrase || match.regex_name || match.value || '')}</div>
-                        <div><strong>Document:</strong> ${escapeHtml(match.document || '')}</div>
-                        ${match.nearest_regex ? `<div><strong>Nearest Regex:</strong> ${escapeHtml(match.nearest_regex)} (${match.nearest_regex_distance ?? 'n/a'})</div>` : ''}
-                        ${match.context ? `<small>Context: "${escapeHtml(match.context)}"</small>` : ''}
-                    </div>
+                    <details class="match ${match.rejected ? 'muted' : ''}">
+                        <summary class="match-summary">
+                            <span class="match-title">${escapeHtml(match.type || 'keyword').toUpperCase()}</span>
+                            <span>${escapeHtml(match.phrase || match.regex_name || match.value || '')}</span>
+                        </summary>
+                        <div class="match-body">
+                            <div><strong>Match:</strong> ${escapeHtml(match.phrase || match.regex_name || match.value || '')}</div>
+                            <div><strong>Document:</strong> ${escapeHtml(match.document || '')}</div>
+                            ${match.nearest_regex ? `<div><strong>Nearest Regex:</strong> ${escapeHtml(match.nearest_regex)} (${match.nearest_regex_distance ?? 'n/a'})</div>` : ''}
+                            ${match.context ? `<small>Context: "${escapeHtml(match.context)}"</small>` : ''}
+                        </div>
+                    </details>
                 `).join('');
             }
 
@@ -1576,6 +1604,10 @@
             return `"${String(value ?? '').replace(/"/g, '""')}"`;
         }
 
+        function normalizeMatchValue(value) {
+            return String(value ?? '').replace(/\s+/g, ' ').trim();
+        }
+
         function buildRegexCsv(summary, matches) {
             if (!Array.isArray(summary) || summary.length === 0) {
                 const map = new Map();
@@ -1591,7 +1623,10 @@
                     };
                     entry.total_count += 1;
                     if (item.document) entry.documents.add(item.document);
-                    if (item.value) entry.matched_texts.add(item.value);
+                    if (item.value) {
+                        const normalized = normalizeMatchValue(item.value);
+                        if (normalized) entry.matched_texts.add(normalized);
+                    }
                     map.set(name, entry);
                 });
                 matches.filter(item => item.type === 'keyword').forEach(item => {
@@ -1631,8 +1666,8 @@
                 let content = 'regex_name,pattern,matched_text,multi_phrase_keyword_count,total_count,file_count,priority,documents\n';
                 summary.forEach(item => {
                     const matchedText = Array.isArray(item.matched_text)
-                        ? item.matched_text.join('|')
-                        : (item.matched_text || '');
+                        ? item.matched_text.map(value => normalizeMatchValue(value)).filter(Boolean).join('|')
+                        : normalizeMatchValue(item.matched_text || '');
                     content += [
                         csvEscape(item.regex_name || ''),
                         csvEscape(item.pattern || ''),

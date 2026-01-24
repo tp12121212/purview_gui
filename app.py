@@ -7,6 +7,7 @@ import hashlib
 import sqlite3
 import tarfile
 import zipfile
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
@@ -19,7 +20,17 @@ import xml.etree.ElementTree as ET
 import base64
 
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageFile, ImageOps, ImageFilter, ExifTags, ImageSequence
+try:
+    import cv2
+    import numpy as np
+except Exception:  # Optional for OCR preprocessing
+    cv2 = None
+    np = None
+try:
+    import easyocr
+except Exception:  # Optional OCR backend
+    easyocr = None
 import PyPDF2
 import docx
 import openpyxl
@@ -55,6 +66,7 @@ warnings.filterwarnings(
     "ignore",
     category=Image.DecompressionBombWarning,
 )
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 # ======================================================
 # Configuration
@@ -397,6 +409,451 @@ def iter_scan_items(files, scan_path: str, recursive: bool, allowed_exts):
 # Text extraction
 # ======================================================
 
+def normalize_image_for_ocr(image: Image.Image) -> Image.Image:
+    try:
+        image = ImageOps.exif_transpose(image)
+    except Exception:
+        pass
+    if image.mode not in ("RGB", "L"):
+        image = image.convert("RGB")
+    return image
+
+def extract_exif_text(image: Image.Image) -> str:
+    try:
+        exif = image.getexif()
+    except Exception:
+        exif = None
+    if not exif:
+        return ""
+    parts = []
+    tag_map = ExifTags.TAGS
+    orientation_map = {
+        1: "Top side, left",
+        2: "Top side, right (Mirror horizontal)",
+        3: "Bottom side, right (Rotate 180)",
+        4: "Bottom side, left (Mirror vertical)",
+        5: "Left side, top (Mirror horizontal and rotate 270 CW)",
+        6: "Right side, top (Rotate 90 CW)",
+        7: "Right side, bottom (Mirror horizontal and rotate 90 CW)",
+        8: "Left side, bottom (Rotate 270 CW)",
+    }
+    for key, value in exif.items():
+        name = tag_map.get(key, str(key))
+        if name == "Orientation":
+            value = orientation_map.get(value, value)
+        parts.append(f"{name}: {value}")
+    return " ".join(parts)
+
+def order_points(pts):
+    rect = np.zeros((4, 2), dtype="float32")
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+    return rect
+
+def four_point_transform(image, pts):
+    rect = order_points(pts)
+    (tl, tr, br, bl) = rect
+    widthA = np.linalg.norm(br - bl)
+    widthB = np.linalg.norm(tr - tl)
+    maxWidth = int(max(widthA, widthB))
+    heightA = np.linalg.norm(tr - br)
+    heightB = np.linalg.norm(tl - bl)
+    maxHeight = int(max(heightA, heightB))
+    dst = np.array([
+        [0, 0],
+        [maxWidth - 1, 0],
+        [maxWidth - 1, maxHeight - 1],
+        [0, maxHeight - 1]
+    ], dtype="float32")
+    M = cv2.getPerspectiveTransform(rect, dst)
+    warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+    return warped
+
+def extract_document_perspective(image: Image.Image) -> Image.Image | None:
+    if cv2 is None or np is None:
+        return None
+    img = np.array(image.convert("RGB"))
+    orig = img.copy()
+    height, width = img.shape[:2]
+    max_dim = max(height, width)
+    ratio = 1.0
+    if max_dim > 1200:
+        ratio = max_dim / 1200.0
+        img = cv2.resize(img, (int(width / ratio), int(height / ratio)), interpolation=cv2.INTER_AREA)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    edged = cv2.Canny(blur, 50, 150)
+    cnts, _ = cv2.findContours(edged, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:10]
+    for c in cnts:
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        if len(approx) == 4 and cv2.contourArea(approx) > 5000:
+            pts = approx.reshape(4, 2).astype("float32") * ratio
+            warped = four_point_transform(orig, pts)
+            return Image.fromarray(warped)
+    return None
+
+def select_best_frame(image: Image.Image) -> Image.Image:
+    if getattr(image, "format", "").upper() != "MPO":
+        return image
+    best = image
+    best_score = -1.0
+    for frame in ImageSequence.Iterator(image):
+        try:
+            frame = frame.copy()
+        except Exception:
+            continue
+        if cv2 is not None and np is not None:
+            arr = np.array(frame)
+            if arr.ndim == 2:
+                gray = arr
+            else:
+                gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
+            score = cv2.Laplacian(gray, cv2.CV_64F).var()
+        else:
+            edges = frame.convert("L").filter(ImageFilter.FIND_EDGES)
+            score = sum(edges.getdata()) / max(1, edges.size[0] * edges.size[1])
+        if score > best_score:
+            best = frame
+            best_score = score
+    return best
+
+def is_macos() -> bool:
+    return sys.platform == "darwin"
+
+def ensure_vision_ocr_binary() -> Path | None:
+    if not is_macos():
+        return None
+    bin_path = Path("scripts/vision_ocr")
+    if bin_path.exists() and os.access(bin_path, os.X_OK):
+        return bin_path
+    swift_path = Path("scripts/vision_ocr.swift")
+    if not swift_path.exists():
+        return None
+    try:
+        result = subprocess.run(
+            ["xcrun", "swiftc", "-O", str(swift_path), "-o", str(bin_path)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        if bin_path.exists():
+            return bin_path
+    except Exception as e:
+        print(f"Vision OCR build failed: {e}")
+    return None
+
+def vision_ocr_from_path(path: Path) -> str:
+    bin_path = ensure_vision_ocr_binary()
+    if not bin_path:
+        raise RuntimeError("Vision OCR binary unavailable")
+    result = subprocess.run(
+        [str(bin_path), str(path)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Vision OCR failed")
+    return result.stdout.strip()
+
+def vision_ocr_from_image(image: Image.Image) -> str:
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp_name = tmp.name
+        image.save(tmp_name, format="PNG")
+    try:
+        return vision_ocr_from_path(Path(tmp_name))
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+
+_easyocr_reader = None
+
+def get_easyocr_reader():
+    global _easyocr_reader
+    if easyocr is None:
+        return None
+    if _easyocr_reader is None:
+        _easyocr_reader = easyocr.Reader(["en"], gpu=False)
+    return _easyocr_reader
+
+def easyocr_from_image(image: Image.Image) -> str:
+    reader = get_easyocr_reader()
+    if reader is None:
+        raise RuntimeError("EasyOCR unavailable")
+    if np is None:
+        raise RuntimeError("NumPy unavailable for EasyOCR")
+    img = np.array(image)
+    results = reader.readtext(img, detail=0, paragraph=True)
+    if isinstance(results, (list, tuple)):
+        return "\n".join(str(r) for r in results if r)
+    return str(results).strip()
+
+def apply_osd_rotation(image: Image.Image) -> Image.Image:
+    try:
+        probe = image
+        max_dim = max(image.width, image.height)
+        if max_dim > 1600:
+            scale = 1600 / max_dim
+            probe = image.resize(
+                (int(image.width * scale), int(image.height * scale)),
+                Image.LANCZOS,
+            )
+        osd = pytesseract.image_to_osd(probe, output_type=pytesseract.Output.DICT)
+        rotate = int(osd.get("rotate", 0) or 0)
+    except Exception:
+        return image
+    if rotate in (90, 180, 270):
+        return image.rotate(-rotate, expand=True)
+    return image
+
+def ocr_image_confidence(image, lang: str = "eng", psm: int = 6):
+    config = f"--oem 3 --psm {psm}"
+    if isinstance(image, Image.Image):
+        image = normalize_image_for_ocr(image)
+    data = pytesseract.image_to_data(image, lang=lang, config=config, output_type=pytesseract.Output.DICT)
+    confidences = [int(c) for c in data.get("conf", []) if c and c != "-1"]
+    if not confidences:
+        return None
+    return sum(confidences) / len(confidences)
+
+def score_ocr_text(text: str, conf: float = 0.0) -> float:
+    if not text:
+        return 0.0
+    cleaned = re.sub(r"[^\w\s]", " ", text)
+    tokens = re.findall(r"[A-Za-z0-9]+", cleaned)
+    if not tokens:
+        return 0.0
+    word_tokens = [t for t in tokens if any(c.isalpha() for c in t)]
+    word_count = len(word_tokens)
+    avg_len = sum(len(t) for t in word_tokens) / max(1, word_count)
+    alpha_ratio = len([t for t in word_tokens if t.isalpha()]) / max(1, word_count)
+    vowel_ratio = len([t for t in word_tokens if re.search(r"[aeiouAEIOU]", t)]) / max(1, word_count)
+    digit_ratio = len([t for t in tokens if t.isdigit()]) / max(1, len(tokens))
+    weird_ratio = len(re.findall(r"[^\x20-\x7E\n\r\t]", text)) / max(1, len(text))
+    score = (word_count * 2.0) + avg_len + (alpha_ratio * 5.0) + (vowel_ratio * 5.0) + (digit_ratio * 1.0)
+    score -= weird_ratio * 10.0
+    score += conf * 0.1
+    return score
+
+def ocr_text_from_regions(image: Image.Image, lang: str = "eng") -> str:
+    if cv2 is None or np is None:
+        return ""
+    gray = np.array(image.convert("L"))
+    height, width = gray.shape[:2]
+    max_dim = max(height, width)
+    if max_dim > 2400:
+        scale = 2400 / max_dim
+        gray = cv2.resize(gray, (int(width * scale), int(height * scale)), interpolation=cv2.INTER_AREA)
+        height, width = gray.shape[:2]
+
+    blur = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, bw = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    if np.mean(bw) > 127:
+        bw = cv2.bitwise_not(bw)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 3))
+    connected = cv2.morphologyEx(bw, cv2.MORPH_CLOSE, kernel, iterations=1)
+    contours, _ = cv2.findContours(connected, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    boxes = []
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        if h < 12 or w < 60:
+            continue
+        if w * h < 800:
+            continue
+        boxes.append((y, x, w, h))
+
+    if not boxes:
+        return ""
+    boxes.sort()
+    lines = []
+    for y, x, w, h in boxes:
+        pad = 4
+        x0 = max(0, x - pad)
+        y0 = max(0, y - pad)
+        x1 = min(width, x + w + pad)
+        y1 = min(height, y + h + pad)
+        crop = gray[y0:y1, x0:x1]
+        crop_img = Image.fromarray(crop)
+        psm = 7 if h < 40 else 6
+        config = f"--oem 3 --psm {psm} --dpi 300"
+        try:
+            line = pytesseract.image_to_string(crop_img, lang=lang, config=config)
+        except pytesseract.TesseractError:
+            line = ""
+        line = line.strip()
+        if line:
+            lines.append(line)
+
+    return "\n".join(lines)
+
+def ocr_image_to_text(image, lang: str = "eng", source_path: Path | None = None):
+    backend = os.environ.get("OCR_BACKEND", "auto").strip().lower()
+    if backend in {"vision", "auto"}:
+        bin_path = ensure_vision_ocr_binary() if backend == "auto" else ensure_vision_ocr_binary()
+        if bin_path:
+            try:
+                if source_path:
+                    return vision_ocr_from_path(source_path)
+                if isinstance(image, Image.Image):
+                    return vision_ocr_from_image(image)
+            except Exception as e:
+                print(f"Vision OCR fallback to Tesseract: {e}")
+
+    if backend in {"easyocr", "auto"}:
+        try:
+            if isinstance(image, Image.Image):
+                return easyocr_from_image(image)
+        except Exception as e:
+            if backend == "easyocr":
+                print(f"EasyOCR failed: {e}")
+            else:
+                print(f"EasyOCR fallback to Tesseract: {e}")
+
+    if isinstance(image, Image.Image):
+        image = normalize_image_for_ocr(image)
+        if os.environ.get("OCR_USE_OSD", "true").strip().lower() in {"1", "true", "yes"}:
+            image = apply_osd_rotation(image)
+
+    def run_ocr(img, psm: int):
+        config = f"--oem 3 --psm {psm} --dpi 300"
+        try:
+            text = pytesseract.image_to_string(img, lang=lang, config=config)
+            conf = ocr_image_confidence(img, lang=lang, psm=psm) or 0
+            word_count = len(re.findall(r"\w+", text))
+            return text, conf, word_count
+        except pytesseract.TesseractError:
+            if isinstance(img, Image.Image):
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                    tmp_name = tmp.name
+                    img.save(tmp_name, format="PNG")
+                try:
+                    text = pytesseract.image_to_string(tmp_name, lang=lang, config=config)
+                    conf = ocr_image_confidence(tmp_name, lang=lang, psm=psm) or 0
+                    word_count = len(re.findall(r"\w+", text))
+                    return text, conf, word_count
+                finally:
+                    try:
+                        os.unlink(tmp_name)
+                    except OSError:
+                        pass
+            raise
+
+    def ocr_from_base(base_img: Image.Image):
+        gray_full = ImageOps.autocontrast(base_img.convert("L"))
+
+        # Fast pass on downscaled image
+        max_dim_full = max(gray_full.width, gray_full.height)
+        fast = gray_full
+        if max_dim_full > 1600:
+            scale = 1600 / max_dim_full
+            fast = gray_full.resize(
+                (int(gray_full.width * scale), int(gray_full.height * scale)),
+                Image.LANCZOS,
+            )
+
+        fast_candidates = [fast, fast.filter(ImageFilter.SHARPEN)]
+        best_text = ""
+        best_score = 0.0
+        for img in fast_candidates:
+            text, conf, _ = run_ocr(img, psm=6)
+            score = score_ocr_text(text, conf=conf)
+            if score > best_score:
+                best_score = score
+                best_text = text
+
+        # Full-quality fallback
+        candidates = [gray_full, gray_full.filter(ImageFilter.SHARPEN)]
+        if max_dim_full < 2200:
+            candidates.append(
+                gray_full.resize((gray_full.width * 2, gray_full.height * 2), Image.LANCZOS)
+            )
+        if cv2 is not None and np is not None:
+            try:
+                cv_gray = np.array(gray_full)
+                blur = cv2.bilateralFilter(cv_gray, 9, 75, 75)
+                adap = cv2.adaptiveThreshold(
+                    blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 5
+                )
+                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+                cleaned = cv2.morphologyEx(adap, cv2.MORPH_CLOSE, kernel)
+                candidates.append(Image.fromarray(cleaned))
+            except Exception:
+                pass
+        else:
+            bw = gray_full.point(lambda x: 0 if x < 160 else 255, mode="1").convert("L")
+            candidates.append(bw)
+
+        for img in candidates:
+            for psm in (6, 4, 3, 11):
+                text, conf, _ = run_ocr(img, psm=psm)
+                score = score_ocr_text(text, conf=conf)
+                if score > best_score:
+                    best_score = score
+                    best_text = text
+
+        # Final safety net: rotate 90/180/270 on downscaled
+        if best_score < 18:
+            for angle in (90, 180, 270):
+                rotated = fast.rotate(angle, expand=True)
+                text, conf, _ = run_ocr(rotated, psm=6)
+                score = score_ocr_text(text, conf=conf)
+                if score > best_score:
+                    best_score = score
+                    best_text = text
+
+        if best_score < 22 and os.environ.get("OCR_REGION_MODE", "true").strip().lower() in {"1", "true", "yes"}:
+            region_text = ocr_text_from_regions(gray_full, lang=lang)
+            region_score = score_ocr_text(region_text)
+            if region_score > best_score:
+                best_text = region_text
+                best_score = region_score
+
+        return best_text, best_score
+
+    base = image
+    best_text, best_score = ocr_from_base(base)
+
+    if os.environ.get("OCR_CARD_MODE", "true").strip().lower() in {"1", "true", "yes"}:
+        try:
+            card_view = extract_document_perspective(base)
+        except Exception:
+            card_view = None
+        if card_view is not None:
+            card_text, card_score = ocr_from_base(card_view)
+            if card_score > best_score:
+                best_text, best_score = card_text, card_score
+
+    return best_text
+
+def post_process_text(text: str) -> str:
+    if not text:
+        return ""
+    text = text.replace("\x00", "")
+    # Repair obvious email/URL spacing issues.
+    def collapse_email(match):
+        return re.sub(r"\s+", "", match.group(0))
+    text = re.sub(
+        r"[A-Za-z0-9._%+-][A-Za-z0-9._%+\-\s]*@\s*[A-Za-z0-9.\-\s]+\.[A-Za-z]{2,}",
+        collapse_email,
+        text,
+    )
+    text = re.sub(
+        r"https?://[A-Za-z0-9./%_+\-\s]+",
+        lambda m: m.group(0).replace(" ", ""),
+        text,
+    )
+    text = re.sub(r"[ \t]+", " ", text)
+    return text.strip()
+
 def extract_text_from_office_media(path: Path, media_prefix: str):
     text = ""
     if not path.is_file():
@@ -410,31 +867,35 @@ def extract_text_from_office_media(path: Path, media_prefix: str):
                     continue
                 with archive.open(info) as image_file:
                     image = Image.open(image_file)
-                    text += pytesseract.image_to_string(image)
+                    text += ocr_image_to_text(image)
     except zipfile.BadZipFile:
         return text
     return text
 
 def extract_text_from_pdf(path):
+    force_ocr = os.environ.get("FORCE_PDF_OCR", "").strip().lower() in {"1", "true", "yes"}
     text = ""
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always", category=PyPDF2.errors.PdfReadWarning)
-        with open(path, "rb") as f:
-            reader = PyPDF2.PdfReader(f)
-            for page in reader.pages:
-                text += page.extract_text() or ""
-    seen_messages = set()
-    for warning in caught:
-        message = str(warning.message)
-        if message in seen_messages:
-            continue
-        seen_messages.add(message)
-        print(f"PdfReadWarning [{Path(path)}]: {message}")
+    if not force_ocr:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", category=PyPDF2.errors.PdfReadWarning)
+            with open(path, "rb") as f:
+                reader = PyPDF2.PdfReader(f)
+                for page in reader.pages:
+                    text += page.extract_text() or ""
+        seen_messages = set()
+        for warning in caught:
+            message = str(warning.message)
+            if message in seen_messages:
+                continue
+            seen_messages.add(message)
+            print(f"PdfReadWarning [{Path(path)}]: {message}")
 
-    def is_garbled_text(value: str) -> bool:
+    def is_low_quality_text(value: str) -> bool:
         sample = value[:8000]
         if len(sample) < 200:
             return False
+        if "\x00" in sample:
+            return True
         tokens = re.findall(r"\S+", sample)
         if not tokens:
             return False
@@ -448,20 +909,39 @@ def extract_text_from_pdf(path):
         if (weird_token_count / len(tokens)) > 0.15:
             return True
         weird_chars = sum(1 for ch in sample if ch in "\\[]{}^`")
-        return (weird_chars / len(sample)) > 0.01
+        if (weird_chars / len(sample)) > 0.01:
+            return True
 
-    if text.strip() and not is_garbled_text(text):
-        return text
+        alpha_tokens = [t for t in tokens if t.isalpha()]
+        if alpha_tokens:
+            single_alpha_ratio = sum(1 for t in alpha_tokens if len(t) == 1) / len(alpha_tokens)
+            if single_alpha_ratio > 0.08:
+                return True
+            split_pairs = 0
+            for idx in range(len(tokens) - 1):
+                left = tokens[idx]
+                right = tokens[idx + 1]
+                if len(left) == 1 and left.isalpha() and right.isalpha() and right[0].islower():
+                    split_pairs += 1
+            if split_pairs >= 3:
+                return True
 
-    if text.strip():
-        print(f"PDF OCR fallback [{Path(path)}]: garbled_text")
+        if re.search(r"(?:\b[A-Za-z]\s+){3,}[A-Za-z]\b", sample):
+            return True
+        return False
+
+    if text.strip() and not is_low_quality_text(text):
+        return post_process_text(text)
+
+    if text.strip() and not force_ocr:
+        print(f"PDF OCR fallback [{Path(path)}]: low_quality_text")
         text = ""
 
-    images = convert_from_path(path)
+    images = convert_from_path(path, dpi=300)
     for img in images:
-        text += pytesseract.image_to_string(img)
+        text += ocr_image_to_text(img)
 
-    return text
+    return post_process_text(text)
 
 
 def extract_text_from_docx(path):
@@ -484,7 +964,11 @@ def extract_text_from_xlsx(path):
 
 def extract_text_from_image(path):
     img = Image.open(path)
-    return pytesseract.image_to_string(img)
+    img = select_best_frame(img)
+    exif_text = extract_exif_text(img)
+    ocr_text = ocr_image_to_text(img, source_path=Path(path))
+    combined = f"{exif_text}\n{ocr_text}" if exif_text else ocr_text
+    return post_process_text(combined)
 
 def extract_text_from_pptx(path):
     presentation = Presentation(path)
@@ -596,21 +1080,22 @@ def extract_text_from_msg_path(path, depth):
 
 def extract_text_from_file_path(path: Path, depth=0):
     ext = path.suffix.lower()
+    text = ""
     if ext == ".pdf":
-        return extract_text_from_pdf(str(path))
-    if ext == ".docx":
-        return extract_text_from_docx(str(path))
-    if ext == ".xlsx":
-        return extract_text_from_xlsx(str(path))
-    if ext == ".pptx":
-        return extract_text_from_pptx(str(path))
-    if ext in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
-        return extract_text_from_image(str(path))
-    if ext == ".eml":
-        return extract_text_from_eml_path(str(path), depth=depth)
-    if ext == ".msg":
-        return extract_text_from_msg_path(str(path), depth=depth)
-    return ""
+        text = extract_text_from_pdf(str(path))
+    elif ext == ".docx":
+        text = extract_text_from_docx(str(path))
+    elif ext == ".xlsx":
+        text = extract_text_from_xlsx(str(path))
+    elif ext == ".pptx":
+        text = extract_text_from_pptx(str(path))
+    elif ext in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
+        text = extract_text_from_image(str(path))
+    elif ext == ".eml":
+        text = extract_text_from_eml_path(str(path), depth=depth)
+    elif ext == ".msg":
+        text = extract_text_from_msg_path(str(path), depth=depth)
+    return post_process_text(text)
 
 
 def extract_text_from_upload(file):
@@ -718,6 +1203,15 @@ def iter_documents_from_archive_bytes(inner_name, data, container_label, depth):
             "source_path": Path(tmp.name),
             "temp_path": True,
         }
+
+# ======================================================
+# Normalization helpers
+# ======================================================
+
+def normalize_match_text(value):
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value)).strip()
 
 # ======================================================
 # Proximity logic
@@ -1125,9 +1619,11 @@ def scan():
                     })
 
                 if debug_text:
+                    log_debug_text(f"started processing file: {document}")
                     log_debug_text(f"extracted_text_begin: {document}")
                     log_debug_text(text)
                     log_debug_text(f"extracted_text_end: {document}")
+                    log_debug_text(f"ended processing file: {document}")
 
                 file_sha256 = sha256_for_path(source_path)
                 cursor.execute(
@@ -1241,7 +1737,9 @@ def scan():
                         )
                         summary["total_count"] += 1
                         summary["documents"].add(document)
-                        summary["matched_texts"].add(r["value"])
+                        normalized_value = normalize_match_text(r["value"])
+                        if normalized_value:
+                            summary["matched_texts"].add(normalized_value)
 
                 for k in keyword_hits:
                     if not logged_file:
@@ -1685,8 +2183,27 @@ def progress(scan_id):
     progress_path = PROGRESS_DIR / f"{scan_id}.json"
     if not progress_path.is_file():
         return jsonify({"success": False, "error": "scan_id not found"}), 404
-    with open(progress_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with open(progress_path, "r", encoding="utf-8") as f:
+            raw = f.read().strip()
+        if not raw:
+            data = {
+                "status": "running",
+                "percent": 0,
+                "current": 0,
+                "total": 0,
+                "current_document": "",
+            }
+        else:
+            data = json.loads(raw)
+    except json.JSONDecodeError:
+        data = {
+            "status": "running",
+            "percent": 0,
+            "current": 0,
+            "total": 0,
+            "current_document": "",
+        }
     data["success"] = True
     return jsonify(data)
 

@@ -1,6 +1,7 @@
 # Requires Python 3.11
 Flask>=3.0,<4.0
 pytesseract>=0.3.10
+easyocr>=1.7.1
 Pillow>=10.2.0
 PyPDF2>=3.0.1,<4.0
 pycryptodome>=3.20.0
