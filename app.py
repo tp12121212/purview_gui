@@ -1338,6 +1338,7 @@ def scan():
     lexicon_path = request.form.get("lexicon_path", DEFAULT_LEXICON_PATH)
     regex_path = request.form.get("regex_path", REGEX_PATTERNS_PATH)
     scenario_mode = request.form.get("scenario_mode", "sit").strip().lower()
+    ocr_backend = request.form.get("ocr_backend")
     lexicon_types = parse_lexicon_types(request.form.get("lexicon_types", ""))
     scan_policy_id = request.form.get("scan_policy_id")
     scan_id = request.form.get("scan_id")
@@ -1363,6 +1364,12 @@ def scan():
             "error": "scenario_mode must be 'sit' or 'scan_only'"
         }), 400
 
+    if ocr_backend:
+        os.environ["OCR_BACKEND"] = ocr_backend.strip().lower()
+    elif scenario_mode == "scan_only" and os.environ.get("OCR_BACKEND", "auto").strip().lower() == "auto":
+        # Favor speed for large batch scans unless explicitly overridden.
+        os.environ["OCR_BACKEND"] = "tesseract"
+
     conn = get_db_connection()
     scan_params = {
         "lexicon_path": lexicon_path,
@@ -1377,6 +1384,7 @@ def scan():
         "output_path": output_path,
         "batch_size": batch_size,
         "return_limit": return_limit,
+        "ocr_backend": ocr_backend or os.environ.get("OCR_BACKEND", "auto"),
     }
     cursor = conn.cursor()
     cursor.execute(
