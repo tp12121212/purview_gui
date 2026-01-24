@@ -1585,10 +1585,12 @@
                         regex_name: name,
                         pattern: '',
                         total_count: 0,
-                        documents: new Set()
+                        documents: new Set(),
+                        matched_texts: new Set()
                     };
                     entry.total_count += 1;
                     if (item.document) entry.documents.add(item.document);
+                    if (item.value) entry.matched_texts.add(item.value);
                     map.set(name, entry);
                 });
                 summary = Array.from(map.values()).map(entry => {
@@ -1596,6 +1598,7 @@
                     return {
                         regex_name: entry.regex_name,
                         pattern: entry.pattern,
+                        matched_text: Array.from(entry.matched_texts).sort(),
                         total_count: entry.total_count,
                         file_count: docs.length,
                         documents: docs,
@@ -1609,11 +1612,15 @@
             }
 
             if (Array.isArray(summary) && summary.length) {
-                let content = 'regex_name,pattern,total_count,file_count,priority,documents\n';
+                let content = 'regex_name,pattern,matched_text,total_count,file_count,priority,documents\n';
                 summary.forEach(item => {
+                    const matchedText = Array.isArray(item.matched_text)
+                        ? item.matched_text.join('|')
+                        : (item.matched_text || '');
                     content += [
                         csvEscape(item.regex_name || ''),
                         csvEscape(item.pattern || ''),
+                        csvEscape(matchedText),
                         csvEscape(item.total_count ?? ''),
                         csvEscape(item.file_count ?? ''),
                         csvEscape(item.priority ?? ''),
@@ -1636,10 +1643,12 @@
                         phrase,
                         normalized_phrase: normalized,
                         total_count: 0,
-                        documents: new Set()
+                        documents: new Set(),
+                        triggering_regexes: new Set()
                     };
                     entry.total_count += 1;
                     if (item.document) entry.documents.add(item.document);
+                    if (item.nearest_regex) entry.triggering_regexes.add(item.nearest_regex);
                     map.set(normalized, entry);
                 });
                 summary = Array.from(map.values()).map(entry => {
@@ -1647,6 +1656,7 @@
                     return {
                         phrase: entry.phrase,
                         normalized_phrase: entry.normalized_phrase,
+                        triggering_regex: Array.from(entry.triggering_regexes).sort(),
                         total_count: entry.total_count,
                         file_count: docs.length,
                         documents: docs,
@@ -1660,10 +1670,14 @@
             }
 
             if (Array.isArray(summary) && summary.length) {
-                let content = 'phrase,total_count,file_count,priority,documents\n';
+                let content = 'phrase,triggering_regex,total_count,file_count,priority,documents\n';
                 summary.forEach(item => {
+                    const triggeringRegex = Array.isArray(item.triggering_regex)
+                        ? item.triggering_regex.join('|')
+                        : (item.triggering_regex || '');
                     content += [
                         csvEscape(item.phrase || ''),
+                        csvEscape(triggeringRegex),
                         csvEscape(item.total_count ?? ''),
                         csvEscape(item.file_count ?? ''),
                         csvEscape(item.priority ?? ''),

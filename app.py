@@ -1235,10 +1235,12 @@ def scan():
                                 "pattern": regex_pattern_map.get(r["name"], ""),
                                 "total_count": 0,
                                 "documents": set(),
+                                "matched_texts": set(),
                             },
                         )
                         summary["total_count"] += 1
                         summary["documents"].add(document)
+                        summary["matched_texts"].add(r["value"])
 
                 for k in keyword_hits:
                     if not logged_file:
@@ -1298,10 +1300,13 @@ def scan():
                                 "phrase": k["phrase"],
                                 "total_count": 0,
                                 "documents": set(),
+                                "triggering_regexes": set(),
                             },
                         )
                         summary["total_count"] += 1
                         summary["documents"].add(document)
+                        if nearest_name:
+                            summary["triggering_regexes"].add(nearest_name)
 
         except Exception as e:
             error_doc = document if "document" in locals() else "unknown"
@@ -1328,15 +1333,18 @@ def scan():
                 "total_count": summary["total_count"],
                 "file_count": len(docs),
                 "documents": docs,
+                "matched_text": sorted(summary.get("matched_texts", set())),
                 "priority": (len(docs) * 1000) + summary["total_count"],
             })
         for summary in keyword_summary.values():
             docs = sorted(summary["documents"])
+            triggering = sorted(summary.get("triggering_regexes", set()))
             keyword_summary_list.append({
                 "phrase": summary["phrase"],
                 "total_count": summary["total_count"],
                 "file_count": len(docs),
                 "documents": docs,
+                "triggering_regex": triggering,
                 "priority": (len(docs) * 1000) + summary["total_count"],
             })
 
