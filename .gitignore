@@ -224,3 +224,4 @@ regex_matches.csv
 keyword_matches.csv
 regex_matches.csv
 private/*
+scan_results.db
