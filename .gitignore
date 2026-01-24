@@ -1,5 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+scan_results.db
+*scan_results*
 *.py[codz]
 *$py.class
 keyword_matches.csv
