@@ -1584,6 +1584,7 @@
                     const entry = map.get(name) || {
                         regex_name: name,
                         pattern: '',
+                        keyword_match_count: 0,
                         total_count: 0,
                         documents: new Set(),
                         matched_texts: new Set()
@@ -1593,12 +1594,27 @@
                     if (item.value) entry.matched_texts.add(item.value);
                     map.set(name, entry);
                 });
+                matches.filter(item => item.type === 'keyword').forEach(item => {
+                    const nearest = item.nearest_regex || '';
+                    if (!nearest) return;
+                    const entry = map.get(nearest) || {
+                        regex_name: nearest,
+                        pattern: '',
+                        keyword_match_count: 0,
+                        total_count: 0,
+                        documents: new Set(),
+                        matched_texts: new Set()
+                    };
+                    entry.keyword_match_count += 1;
+                    map.set(nearest, entry);
+                });
                 summary = Array.from(map.values()).map(entry => {
                     const docs = Array.from(entry.documents).sort();
                     return {
                         regex_name: entry.regex_name,
                         pattern: entry.pattern,
                         matched_text: Array.from(entry.matched_texts).sort(),
+                        multi_phrase_keyword_count: entry.keyword_match_count,
                         total_count: entry.total_count,
                         file_count: docs.length,
                         documents: docs,
@@ -1612,7 +1628,7 @@
             }
 
             if (Array.isArray(summary) && summary.length) {
-                let content = 'regex_name,pattern,matched_text,total_count,file_count,priority,documents\n';
+                let content = 'regex_name,pattern,matched_text,multi_phrase_keyword_count,total_count,file_count,priority,documents\n';
                 summary.forEach(item => {
                     const matchedText = Array.isArray(item.matched_text)
                         ? item.matched_text.join('|')
@@ -1621,6 +1637,7 @@
                         csvEscape(item.regex_name || ''),
                         csvEscape(item.pattern || ''),
                         csvEscape(matchedText),
+                        csvEscape(item.multi_phrase_keyword_count ?? ''),
                         csvEscape(item.total_count ?? ''),
                         csvEscape(item.file_count ?? ''),
                         csvEscape(item.priority ?? ''),

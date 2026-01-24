@@ -1233,6 +1233,7 @@ def scan():
                             {
                                 "regex_name": r["name"],
                                 "pattern": regex_pattern_map.get(r["name"], ""),
+                                "keyword_match_count": 0,
                                 "total_count": 0,
                                 "documents": set(),
                                 "matched_texts": set(),
@@ -1307,6 +1308,17 @@ def scan():
                         summary["documents"].add(document)
                         if nearest_name:
                             summary["triggering_regexes"].add(nearest_name)
+                            regex_summary.setdefault(
+                                nearest_name,
+                                {
+                                    "regex_name": nearest_name,
+                                    "pattern": regex_pattern_map.get(nearest_name, ""),
+                                    "keyword_match_count": 0,
+                                    "total_count": 0,
+                                    "documents": set(),
+                                    "matched_texts": set(),
+                                },
+                            )["keyword_match_count"] += 1
 
         except Exception as e:
             error_doc = document if "document" in locals() else "unknown"
@@ -1330,6 +1342,7 @@ def scan():
             regex_summary_list.append({
                 "regex_name": summary["regex_name"],
                 "pattern": summary["pattern"],
+                "multi_phrase_keyword_count": summary.get("keyword_match_count", 0),
                 "total_count": summary["total_count"],
                 "file_count": len(docs),
                 "documents": docs,
