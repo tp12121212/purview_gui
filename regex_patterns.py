@@ -2,22 +2,6 @@
 # Patterns use raw double-quoted strings unless a trailing backslash requires a normal string.
 patterns = [
     {
-        'name': 'Amazon_MWS',
-        'pattern': r"amzn\.mws\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-    },
-    {
-        'name': 'Amazon_MWS_Auth_Token',
-        'pattern': r"amzn\.mws\.[0-9a-f]{8}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{4}\-[0-9a-f]{12}",
-    },
-    {
-        'name': 'Amazon_SNS_Topic',
-        'pattern': r"arn:aws:sns:[a-z0-9-]+:[0-9]+:[A-Za-z0-9\-_]+",
-    },
-    {
-        'name': 'argentina_national_id',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{2}\.\d{3}\.\d{3}|\d{8}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
         'name': 'auspost_tracking',
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((EBA|EA|LP|33|62|99)\d{11,20})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     },
@@ -45,101 +29,13 @@ patterns = [
         'name': 'australia_passport_number_latest',
         'pattern': r"(?i)DOCUMENT[\s\S]{0,200}(?:P[A-E]|RA|N|M)[0-9]{7}|(?:P[A-E]|RA|N|M)[0-9]{7}[\s\S]{0,200}DOCUMENT",
     },
+     {
+        'name': 'australia_passport_number_latest',
+        'pattern': r"(?i)(?:\b(?:DOCUMENT(?:\s*(?:NO|NUMBER))?|PASSPORT(?:\s*(?:NO|NUMBER))?)\b[\s\S]{0,200}\b(?:P[A-E]|RA|N|M)\d{7}\b|\b(?:P[A-E]|RA|N|M)\d{7}\b[\s\S]{0,200}\b(?:DOCUMENT(?:\s*(?:NO|NUMBER))?|PASSPORT(?:\s*(?:NO|NUMBER))?)\b)",
+    }
     {
         'name': 'australian_address',
         'pattern': r"(?:^|[\s,;\:\(\)\[\]\"\'])((\d{1,6}\s+[A-Za-z0-9]+\s+(St|Street|Rd|Road|Ave|Avenue|Ct|Court|Crt|Ln|Lane|Blvd|Boulevard|Pl|Place|Terrace|Terr|Cres|Crescent|Dr|Drive|Pde|Parade|Way|Wk|Walk)))(?:$|[\s,\;\:\(\)\[\]\"\']|\.\s|\.$)",
-    },
-    {
-        'name': 'australian_mobile_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((?:\+61[\s\-]?4\d{2}[\s\-]?\d{3}[\s\-]?\d{3}|61[\s\-]?4\d{2}[\s\-]?\d{3}[\s\-]?\d{3}|04\d{2}[\s\-]?\d{3}[\s\-]?\d{3}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'austria_eu_drivers_license_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{8}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'austria_eu_national_id_card',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"'#|])([a-zA-Z0-9+/]{22}[a-zA-Z0-9+/=]{2})(?:$|[\s,;:\(\)\[\]\"'#|]|\.\s|\.$)",
-    },
-    {
-        'name': 'austria_eu_passport_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(([a-zA-Z]\s?\d{7}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'austria_eu_ssn_or_equivalent',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{4}([0]?[1-9]|1[0-9]|2[0-9]|3[0-1])([0]?[1-9]|1[0-9])\d{2}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'austria_eu_tax_file_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{2}-?\d{3}/?\d{4}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'AWS_Access_Key',
-        'pattern': r"(A3T[A-Z0-9]|AKIA|AGPA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}",
-    },
-    {
-        'name': 'AWS_Access_Key_ID',
-        'pattern': r"AKIA[0-9A-Z]{16}",
-    },
-    {
-        'name': 'AWS_API_Key',
-        'pattern': r"AKIA[0-9A-Z]{16}",
-    },
-    {
-        'name': 'AWS_S3_URL',
-        'pattern': r"(?:https://)?s3\.amazonaws\.com[/]+.*|[a-zA-Z0-9_\-]*\.s3\.am",
-    },
-    {
-        'name': 'belgium_eu_drivers_license_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{10}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'belgium_eu_passport_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(([a-zA-Z]{2}\d{6}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'belgium_eu_ssn_or_equivalent',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{11}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'belgium_eu_tax_file_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{2}[01]\d[0123]\d{6}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Bitly_Secret_Key',
-        'pattern': r"R_[0-9a-f]{32}",
-    },
-    {
-        'name': 'Braintree_Access_Token',
-        'pattern': r"access_token$production$[0-9a-z]{16}$[0-9a-f]{32}",
-    },
-    {
-        'name': 'Braintree_Access_Token',
-        'pattern': r"access_token$production$[0-9a-z]{16}$[0-9a-f]{32}",
-    },
-    {
-        'name': 'canada_bank_account_number_Copy',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{7}|\d{12}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'canada_bank_account_transit_number_Copy',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((\d{5}-\d{3})|(0\d{8})))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'canada_health_service_number_Copy',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{10}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'canada_passport_number_Copy',
-        'pattern': r"(?ix)\b([A-Z]{2}\d{6})\b",
-    },
-    {
-        'name': 'canada_phin_Copy',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{9}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'CEP_AzureConnectionString',
-        'pattern': "\\\\b\\(\\(Server\\|server\\|data\\ source\\)\\\\s\\{0,2\\}=\\\\s\\{0,2\\}\\[\\\\x20\\-\\\\x7F\\]\\{1,200\\}\\?\\(\\(cloudapp\\\\\\.\\(azure\\\\\\.com\\|net\\)\\)\\|\\(database\\\\\\.windows\\\\\\.net\\)\\)\\[\\\\x20\\-\\\\x7F\\]\\{1,300\\}\\?\\(Password\\|password\\|pwd\\)\\\\s\\{0,2\\}=\\\\s\\{0,2\\}\\[\\^;\"\\\\",
     },
     {
         'name': 'CEP_AzureEmulatorStorageAccountFilter',
@@ -174,204 +70,20 @@ patterns = [
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((User Id|User ID|uid|UserId)[\x20-\x7F]{1,200}(Password|[^a-z]pwd)=[^$%>@\";\[\{][^;/\"]{7,128}(;|\")))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     },
     {
-        'name': 'Cloudinary_Credentials',
-        'pattern': r"cloudinary://[0-9]+:[A-Za-z0-9\-_.]+@[A-Za-z0-9\-_.]+",
-    },
-    {
-        'name': 'colombia_national_id_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((\d{2}((\.\d{3}){2}|(,\d{3}){2}|\d{6}))|(1((\.\d{3}){3}|(,\d{3}){3}|\d{9}))))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'croatia_eu_drivers_license_number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{8}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
         'name': 'Date',
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Discord_Webhook',
-        'pattern': r"https://discordapp\.com/api/webhooks/[0-9]+/[A-Za-z0-9\-_]+",
-    },
-    {
-        'name': 'Dropbox_Access_Token',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])([a-zA-Z0-9]{64})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Dynatrace_Token',
-        'pattern': r"dt0[a-zA-Z][0-9]{2}\.[A-Z0-9]{24}\.[A-Z0-9]{64}",
-    },
-    {
-        'name': 'Ecuador_Unique_Identification_Number',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((0[1-9]|[1-2][0-9]|30|90|99)\d{8}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     },
     {
         'name': 'Email',
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,7})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     },
     {
-        'name': 'Facebook_Access_Token',
-        'pattern': r"EAACEdEose0cBA[0-9A-Za-z]+",
+        'name': 'ipv4_address',
+        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})(?:/(?:[0-9]|[1-2]\d|3[0-2]))?(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     },
     {
-        'name': 'Facebook_Access_Token',
-        'pattern': r"EAACEdEose0cBA[0-9A-Za-z]+",
-    },
-    {
-        'name': 'Facebook_OAuth',
-        'pattern': "\\[f\\|F\\]\\[a\\|A\\]\\[c\\|C\\]\\[e\\|E\\]\\[b\\|B\\]\\[o\\|O\\]\\[o\\|O\\]\\[k\\|K\\]\\.\\*\\[\\\\",
-    },
-    {
-        'name': 'Filter_TrivialValue2_20601768_CEP2_0',
-        'pattern': r"(?i)(sample|example)\.(com|net)",
-    },
-    {
-        'name': 'Firebase_URL',
-        'pattern': r".*firebaseio\.com",
-    },
-    {
-        'name': 'GCP_Service_Account',
-        'pattern': r"\"type\": \"service_account\"",
-    },
-    {
-        'name': 'Generic_API_Key',
-        'pattern': "\\[a\\|A\\]\\[p\\|P\\]\\[i\\|I\\]_\\?\\[k\\|K\\]\\[e\\|E\\]\\[y\\|Y\\]\\.\\*\\[\\\\",
-    },
-    {
-        'name': 'Generic_Secret',
-        'pattern': "\\[s\\|S\\]\\[e\\|E\\]\\[c\\|C\\]\\[r\\|R\\]\\[e\\|E\\]\\[t\\|T\\]\\.\\*\\[\\\\",
-    },
-    {
-        'name': 'GitHub',
-        'pattern': "\\[g\\|G\\]\\[i\\|I\\]\\[t\\|T\\]\\[h\\|H\\]\\[u\\|U\\]\\[b\\|B\\]\\.\\*\\[\\\\",
-    },
-    {
-        'name': 'GitHub_Access_Token',
-        'pattern': r"[a-zA-Z0-9_\-]*:[a-zA-Z0-9_\-]+@github\.com*",
-    },
-    {
-        'name': 'Github_App_Token',
-        'pattern': r"(ghu|ghs)\_[0-9a-zA-Z]{36}",
-    },
-    {
-        'name': 'Github_OAuth_Access_Token',
-        'pattern': r"gho\_[0-9a-zA-Z]{36}",
-    },
-    {
-        'name': 'Github_Personal_Access_Token',
-        'pattern': r"ghp\_[0-9a-zA-Z]{36}",
-    },
-    {
-        'name': 'Github_Refresh_Token',
-        'pattern': r"ghr\_[0-9a-zA-Z]{76}",
-    },
-    {
-        'name': 'Google_API_Key',
-        'pattern': r"AIza[0-9A-Za-z\-_]{35}",
-    },
-    {
-        'name': 'Google_API_Key',
-        'pattern': r"AIza[0-9A-Za-z\-_]{35}",
-    },
-    {
-        'name': 'Google_Calendar_URI',
-        'pattern': r"https://www\.google\.com/calendar/embed\?src=[A-Za-z0-9%@&;=\-_\.\/]+",
-    },
-    {
-        'name': 'Google_Cloud_Platform_API_Key',
-        'pattern': r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
-    },
-    {
-        'name': 'Google_FCM_Server_Key',
-        'pattern': r"AAAA[a-zA-Z0-9_\-]{7}:[a-zA-Z0-9_\-]{140}",
-    },
-    {
-        'name': 'Google_OAuth_Access_Key',
-        'pattern': r"ya29\.[0-9A-Za-z\-_]+",
-    },
-    {
-        'name': 'Google_OAuth_Access_Token',
-        'pattern': r"ya29\.[0-9A-Za-z\-_]+",
-    },
-    {
-        'name': 'Google_OAuth_ID',
-        'pattern': r"[0-9(\+\-][0-9A-Za-z_]{32}\.apps\.googleusercontent\.com",
-    },
-    {
-        'name': 'Heroku_API_Key',
-        'pattern': r"[h|H][e|E][r|R][o|O][k|K][u|U].*[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
-    },
-    {
-        'name': 'Heroku_API_key',
-        'pattern': r"[h|H][e|E][r|R][o|O][k|K][u|U].{0,30}[0-9A-F]{8}\-[0-9A-F]{4}\-[0-9A-F]{4}\-[0-9A-F]{4}\-[0-9A-F]{12}",
-    },
-    {
-        'name': 'IP_Address',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'ipv4_address_Copy',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-5])(?:\.(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5])){3}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'JWT',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])([eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9]+\.[eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ]+\.[SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c]+)(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'LinkedIn_Client_ID',
-        'pattern': r"(?i)linkedin(.{0,20})?[0-9a-z]{12}",
-    },
-    {
-        'name': 'LinkedIn_Secret_Key',
-        'pattern': r"(?i)linkedin(.{0,20})?[0-9a-z]{16}",
-    },
-    {
-        'name': 'MailChimp_API_Key',
-        'pattern': r"[0-9a-f]{32}-us[0-9]{1,2}",
-    },
-    {
-        'name': 'MailChimp_API_Key',
-        'pattern': r"[0-9a-f]{32}\-us[0-9]{1,2}",
-    },
-    {
-        'name': 'Mailgun_API_Key',
-        'pattern': r"key-[0-9a-zA-Z]{32}",
-    },
-    {
-        'name': 'Mailgun_Private_Key',
-        'pattern': r"key\-[0-9a-zA-Z]{32}",
-    },
-    {
-        'name': 'Microsoft_Teams_Webhook',
-        'pattern': r"https://outlook\.office\.com/webhook/[A-Za-z0-9\-@]+/IncomingWebhook/[A-Za-z0-9\-]+/[A-Za-z0-9\-]+",
-    },
-    {
-        'name': 'MongoDB_Cloud_Connection_String',
-        'pattern': r"mongodb\+srv://(.*)",
-    },
-    {
-        'name': 'nab_bank_statements',
+        'name': 'nab_bank_bsb',
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(08[2-4](?:[- ]?\d{3}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'New_Relic_Admin_API_Key',
-        'pattern': r"NRAA-[a-f0-9]{27}",
-    },
-    {
-        'name': 'New_Relic_Insights_Key',
-        'pattern': r"NRI(?:I|Q)-[A-Za-z0-9\-_]{32}",
-    },
-    {
-        'name': 'New_Relic_REST_API_Key',
-        'pattern': r"NRRA-[a-f0-9]{42}",
-    },
-    {
-        'name': 'New_Relic_Synthetics_Location_Key',
-        'pattern': r"NRSP-[a-z]{2}[0-9]{2}[a-f0-9]{31}",
-    },
-    {
-        'name': 'Notion_Integration_Token',
-        'pattern': r"(secret_)([a-zA-Z0-9]{43})",
     },
     {
         'name': 'NSW_Drivers_Licence_Card_number',
@@ -384,26 +96,6 @@ patterns = [
     {
         'name': 'page_number',
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((Page 1 of ([1-9]|1[0-9]|20)))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'PayPal_Braintree_Access_Token',
-        'pattern': r"access_token$production$[0-9a-z]{16}$[0-9a-f]{32}",
-    },
-    {
-        'name': 'PGP_Private_Key',
-        'pattern': r"-----BEGIN PGP PRIVATE KEY BLOCK-----",
-    },
-    {
-        'name': 'Picatic_API_Key',
-        'pattern': r"sk_live_[0-9a-z]{32}",
-    },
-    {
-        'name': 'Picatic_API_Key',
-        'pattern': r"sk\_[live|test]\_[0-9a-z]{32}",
-    },
-    {
-        'name': 'PyPI_Upload_Token',
-        'pattern': r"pypi-AgEIcHlwaS5vcmc[A-Za-z0-9\-_]{50,1000}",
     },
     {
         'name': 'Ranker_CSCAN_AZURE0020_0eae114f_baad_4dba_a100_c5b34d217964_60068066_CEP2_0',
@@ -482,100 +174,12 @@ patterns = [
         'pattern': "\\(\\?i\\)\\(\\^\\|\\[\\^a\\-z\\]\\)\\(\\(Remote\\ \\?LU\\(\\ \\?Alias\\)\\?\\|host\\(name\\)\\?\\|data\\ source\\|server\\|addr\\|\\(network\\ \\)\\?address\\)\\(\\\\s\\{0,4\\}=\\\\s\\{0,4\\}\\|:\\\\s\\{0,4\\}\\[\"\\\\",
     },
     {
-        'name': 'Riot_Games_Developer_API_Key',
-        'pattern': r"RGAPI-[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
-    },
-    {
-        'name': 'RSA_Private_Key',
-        'pattern': r"-----BEGIN RSA PRIVATE KEY-----",
-    },
-    {
-        'name': 'Russian_Passport_Number_International',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((\d{2}[ -]?\d{7}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
         'name': 'Scanner_SymmetricKey128_SymmetricKey_61027830_CEP2_0',
         'pattern': r"\(\?i\)\[\^\\w/\\\+\\\._\$,\\\]\(\[a\-z0\-9/\\\+\]\{22\}==\)\(\[\^\\w/\\\+\\\.\$\]\|\$\)",
     },
     {
         'name': 'Scanner_SymmetricKey360_SymmetricKey_31201899_CEP2_0',
         'pattern': r"\(\?i\)\[\^\\w/\\\+\\\.\\\-\$,\\\]\(\[a\-z0\-9/\\\+\]\{60\}\)\[\^\\w/\\\+\\\.\\\-\$,\\\]",
-    },
-    {
-        'name': 'SendGrid_API_Key',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(SG\.[a-zA-Z0-9-_]{22,})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'SendGrid_Token',
-        'pattern': r"SG\.[0-9A-Za-z\-_]{22}\.[0-9A-Za-z\-_]{43}",
-    },
-    {
-        'name': 'SerpAPI',
-        'pattern': r"[a-f0-9]{64}",
-    },
-    {
-        'name': 'Shopify_Access_Token',
-        'pattern': r"shpat_[a-fA-F0-9]{32}",
-    },
-    {
-        'name': 'Shopify_Custom_App_Access_Token',
-        'pattern': r"shpca_[a-fA-F0-9]{32}",
-    },
-    {
-        'name': 'Shopify_Private_App_Access_Token',
-        'pattern': r"shppa_[a-fA-F0-9]{32}",
-    },
-    {
-        'name': 'Shopify_Shared_Secret',
-        'pattern': r"shpss_[a-fA-F0-9]{32}",
-    },
-    {
-        'name': 'Slack_API_token',
-        'pattern': r"(xox[p|b|o|a]\-[0-9]{12}\-[0-9]{12}\-[0-9]{12}\-[a-z0-9]{32})",
-    },
-    {
-        'name': 'Slack_Bot_Token',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(xoxb-[a-zA-Z0-9]{10,})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Slack_Token',
-        'pattern': r"(xox[p|b|o|a]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})",
-    },
-    {
-        'name': 'Slack_Webhook',
-        'pattern': r"https://hooks\.slack\.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}",
-    },
-    {
-        'name': 'Slack_Webhook',
-        'pattern': r"https://hooks\.slack\.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}",
-    },
-    {
-        'name': 'Square_Access_Token',
-        'pattern': r"sq0atp-[0-9A-Za-z\-_]{22}",
-    },
-    {
-        'name': 'Square_Access_Token',
-        'pattern': r"sqOatp\-[0-9A-Za-z\-_]{22}",
-    },
-    {
-        'name': 'Square_Application_Secret',
-        'pattern': r"sandbox\-?sq0csp\-[0-9A-Za-z\-_]{43}|sq0[a-z]{3}\-[0-9A-Za-z\-_]{22,43}",
-    },
-    {
-        'name': 'Square_OAuth_Secret',
-        'pattern': r"sq0csp-[0-9A-Za-z\-_]{43}",
-    },
-    {
-        'name': 'SSH_DSA_Private_Key',
-        'pattern': r"-----BEGIN DSA PRIVATE KEY-----",
-    },
-    {
-        'name': 'SSH_EC_Private_Key',
-        'pattern': r"-----BEGIN EC PRIVATE KEY-----",
-    },
-    {
-        'name': 'StackHawk_API_Key',
-        'pattern': r"hawk\.[0-9A-Za-z\-_]{20}\.[0-9A-Za-z\-_]{20}",
     },
     {
         'name': 'statement_number',
@@ -586,52 +190,8 @@ patterns = [
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])((112|113|114|115|116|117|118|119|330|332|333|334|335|336)[ -]?\d{3})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
     },
     {
-        'name': 'Stripe_API_Key',
-        'pattern': r"sk_live_[0-9a-zA-Z]{24}",
-    },
-    {
-        'name': 'Stripe_Publishable_Key',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(pk_(live|test)_[a-zA-Z0-9]{24})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Stripe_Restricted_API_Key',
-        'pattern': r"rk_live_[0-9a-zA-Z]{24}",
-    },
-    {
-        'name': 'Stripe_Restricted_API_Token',
-        'pattern': r"rk_live\_[0-9a-zA-Z]{24}",
-    },
-    {
-        'name': 'Stripe_Standard_API_Token',
-        'pattern': r"sk_live\_[0-9a-zA-Z]{24}",
-    },
-    {
-        'name': 'swift',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(([A-Z]{4}(AF|AX|AL|DZ|AS|AD|AO|AI|AQ|AG|AR|AM|AW|AU|AT|AZ|BS|BH|BD|BB|BY|BE|BZ|BJ|BM|BT|BO|BQ|BA|BW|BV|BR|IO|BN|BG|BF|BI|KH|CM|CA|CV|KY|CF|TD|CL|CN|CX|CC|CO|KM|CG|CD|CK|CR|CI|HR|CU|CW|CY|CZ|DK|DJ|DM|DO|EC|EG|SV|GQ|ER|EE|ET|FK|FO|FJ|FI|FR|GF|PF|TF|GA|GM|GE|DE|GH|GI|GR|GL|GD|GP|GU|GT|GG|GN|GW|GY|HT|HM|VA|HN|HK|HU|IS|IN|ID|IR|IQ|IE|IM|IL|IT|JM|JP|JE|JO|KZ|KE|KI|KP|KR|KW|KG|LA|LV|LB|LS|LR|LY|LI|LT|LU|MO|MK|MG|MW|MY|MV|ML|MT|MH|MQ|MR|MU|YT|MX|FM|MD|MC|MN|ME|MS|MA|MZ|MM|NA|NR|NP|NL|NC|NZ|NI|NE|NG|NU|NF|MP|NO|OM|PK|PW|PS|PA|PG|PY|PE|PH|PN|PL|PT|PR|QA|RE|RO|RU|RW|BL|SH|KN|LC|MF|PM|VC|WS|SM|ST|SA|SN|RS|SC|SL|SG|SX|SK|SI|SB|SO|ZA|GS|SS|ES|LK|SD|SR|SJ|SZ|SE|CH|SY|TW|TJ|TZ|TH|TL|TG|TK|TO|TT|TN|TR|TM|TC|TV|UG|UA|AE|GB|US|UM|UY|UZ|VU|VE|VN|VG|VI|WF|EH|YE|ZM|ZW)(\w{2}|\w{5})))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'temp_robert_ferguson',
-        'pattern': r"Robert Ferguson",
-    },
-    {
         'name': 'transaction_amount',
         'pattern': r"\\b\(\$\?\-\?\\d\{1,3\}\(,\\d\{3\}\)\{0,3\}\\\.\\d\{2\}\\b\)\\b",
-    },
-    {
-        'name': 'Twilio_Account_SID',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(AC[a-zA-Z0-9]{32})(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Twilio_API_Key',
-        'pattern': r"SK[0-9a-fA-F]{32}",
-    },
-    {
-        'name': 'Twilio_API_Key',
-        'pattern': r"(?i)twilio(.{0,20})?SK[0-9a-f]{32}",
-    },
-    {
-        'name': 'Twitter_Access_Token',
-        'pattern': r"[t|T][w|W][i|I][t|T][t|T][e|E][r|R].*[1-9][0-9]+-[0-9a-zA-Z]{40}",
     },
     {
         'name': 'URL',
@@ -648,17 +208,5 @@ patterns = [
     {
         'name': 'Westpac_statement_bsb_regex',
         'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((03[2-9]|73[0-9])[ -]?\d{3}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Westpac_statement_supporting_regex',
-        'pattern': r"(?:^|[\s,;:\(\)\[\]\"\'\'])(((03[2-9]|73[0-9])[ -]?\d{3}))(?:$|[\s,;:\(\)\[\]\"\'\']|\.\s|\.$)",
-    },
-    {
-        'name': 'Zapier_Webhook',
-        'pattern': r"https://(?:www\.)?hooks\.zapier\.com/hooks/catch/[A-Za-z0-9]+/[A-Za-z0-9]+/",
-    },
-    {
-        'name': 'Zoho_Webhook_Token',
-        'pattern': r"https://creator\.zoho\.com/api/[A-Za-z0-9/\-_\.]+\?authtoken=[A-Za-z0-9]+",
-    },
+    }
 ]
